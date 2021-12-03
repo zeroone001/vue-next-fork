@@ -50,6 +50,9 @@ let activeEffect: ReactiveEffect | undefined
 export const ITERATE_KEY = Symbol(__DEV__ ? 'iterate' : '')
 export const MAP_KEY_ITERATE_KEY = Symbol(__DEV__ ? 'Map key iterate' : '')
 
+/* 
+  ReactiveEffect 类
+*/
 export class ReactiveEffect<T = any> {
   active = true
   deps: Dep[] = []
@@ -68,6 +71,7 @@ export class ReactiveEffect<T = any> {
     public scheduler: EffectScheduler | null = null,
     scope?: EffectScope | null
   ) {
+    /* 第一个参数是函数 */
     recordEffectScope(this, scope)
   }
 

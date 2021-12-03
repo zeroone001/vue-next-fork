@@ -36,7 +36,10 @@ const builtInSymbols = new Set(
     .map(key => (Symbol as any)[key])
     .filter(isSymbol)
 )
-
+/* 
+  get, set 都是很重要的公共函数，
+  是Proxy的handlers
+*/
 const get = /*#__PURE__*/ createGetter()
 const shallowGet = /*#__PURE__*/ createGetter(false, true)
 const readonlyGet = /*#__PURE__*/ createGetter(true)
@@ -76,12 +79,22 @@ function createArrayInstrumentations() {
   })
   return instrumentations
 }
+/* 
+  createGetter 接受两个参数
+  1， 是否只读，2， 浅代理
 
+*/
 function createGetter(isReadonly = false, shallow = false) {
+  /*  */
   return function get(target: Target, key: string | symbol, receiver: object) {
+    /* 重点 */
     if (key === ReactiveFlags.IS_REACTIVE) {
+      /* 访问属性 __v_isReactive */
       return !isReadonly
     } else if (key === ReactiveFlags.IS_READONLY) {
+      /* 
+       访问属性  __v_isReadonly
+      */
       return isReadonly
     } else if (
       key === ReactiveFlags.RAW &&
@@ -95,26 +108,36 @@ function createGetter(isReadonly = false, shallow = false) {
           : reactiveMap
         ).get(target)
     ) {
+      /* toRaw() 函数， 执行到这里了 */
       return target
     }
-
+    /* 判断是不是数组 */
     const targetIsArray = isArray(target)
 
     if (!isReadonly && targetIsArray && hasOwn(arrayInstrumentations, key)) {
       return Reflect.get(arrayInstrumentations, key, receiver)
     }
-
+    /* 
+      获取get返回值
+    */
     const res = Reflect.get(target, key, receiver)
 
     if (isSymbol(key) ? builtInSymbols.has(key) : isNonTrackableKeys(key)) {
       return res
     }
-
+    /* 
+      // 问题：为什么是 readonly 的时候不做依赖收集呢
+    // readonly 的话，是不可以被 set 的， 那不可以被 set 就意味着不会触发 trigger
+    // 所有就没有收集依赖的必要了
+    // 只读的数据回改变，也就不需要收集依赖
+    */
     if (!isReadonly) {
+      /* // 在触发 get 的时候进行依赖收集 */
       track(target, TrackOpTypes.GET, key)
     }
-
+    /* shallow 的话，只劫持一层 */
     if (shallow) {
+      /* 直接return */
       return res
     }
 
@@ -125,6 +148,11 @@ function createGetter(isReadonly = false, shallow = false) {
     }
 
     if (isObject(res)) {
+      /* 
+        如果是对象的话
+        再执行reactive代理，每一层都代理
+        如果是只读的话，就直接返回
+       */
       // Convert returned value into a proxy as well. we do the isObject check
       // here to avoid invalid value warning. Also need to lazy access readonly
       // and reactive here to avoid circular dependency.
@@ -135,9 +163,12 @@ function createGetter(isReadonly = false, shallow = false) {
   }
 }
 
+
 const set = /*#__PURE__*/ createSetter()
 const shallowSet = /*#__PURE__*/ createSetter(true)
-
+/* 
+  这个也是很重要的函数 setter函数
+*/
 function createSetter(shallow = false) {
   return function set(
     target: object,
@@ -145,6 +176,7 @@ function createSetter(shallow = false) {
     value: unknown,
     receiver: object
   ): boolean {
+    /* 旧值 */
     let oldValue = (target as any)[key]
     if (!shallow) {
       value = toRaw(value)
@@ -164,6 +196,7 @@ function createSetter(shallow = false) {
     const result = Reflect.set(target, key, value, receiver)
     // don't trigger if target is something up in the prototype chain of original
     if (target === toRaw(receiver)) {
+      /* 触发依赖 */
       if (!hadKey) {
         trigger(target, TriggerOpTypes.ADD, key, value)
       } else if (hasChanged(value, oldValue)) {

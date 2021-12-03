@@ -17,10 +17,32 @@
 
 ## 目录模块
 
+compile: 可以简单理解为将.vue 文件编译为 浏览器能识别的.js 文件
+runtime: 可以理解成，程序运行时，就是程序被编译完成后，在浏览器打开，运行代码，直到程序关闭
+
+
 * runtime-dom   运行时dom 关api，属性，事件处理
 * runtime-core  运行时核心实例相关代码（平台无关）
 * shared 内部工具库
+* compiler-core
+* compiler-dom
+* reactivity 响应式模块，可以与任何框架配合使用
+* compiler-sfc Vue单文件组件编译工具
+* vue 完整源码产生目录
  
+vue.global.js：是包含编译器和运行时的“完整”构建版本，因此它支持动态编译模板
+vue.runtime.global.js：只包含运行时，并且需要在构建步骤期间预编译模板
+
+
+
+
+
+
+
+
+
+
+
 
 # vue-next [![npm](https://img.shields.io/npm/v/vue/next.svg)](https://www.npmjs.com/package/vue/v/next) [![build status](https://github.com/vuejs/vue-next/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/vuejs/vue-next/actions/workflows/ci.yml)
 

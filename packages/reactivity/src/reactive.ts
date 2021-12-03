@@ -85,6 +85,10 @@ export type UnwrapNestedRefs<T> = T extends Ref ? T : UnwrapRefSimple<T>
  * ```
  */
 export function reactive<T extends object>(target: T): UnwrapNestedRefs<T>
+/* 
+  reactive 函数 
+
+*/
 export function reactive(target: object) {
   // if trying to observe a readonly proxy, return the readonly version.
   if (target && (target as Target)[ReactiveFlags.IS_READONLY]) {
@@ -178,6 +182,14 @@ export function shallowReadonly<T extends object>(
   )
 }
 
+/* 
+
+  reactive 核心函数
+  createReactiveObject 函数核心就是Proxy
+  目的是可以监听到用户的get 和 set的动作
+  使用缓存做了优化
+
+*/
 function createReactiveObject(
   target: Target,
   isReadonly: boolean,
@@ -185,6 +197,7 @@ function createReactiveObject(
   collectionHandlers: ProxyHandler<any>,
   proxyMap: WeakMap<Target, any>
 ) {
+  /* 如果不是对象的话，直接返回，因为基础类型是要用ref函数处理的 */
   if (!isObject(target)) {
     if (__DEV__) {
       console.warn(`value cannot be made reactive: ${String(target)}`)
@@ -209,6 +222,7 @@ function createReactiveObject(
   if (targetType === TargetType.INVALID) {
     return target
   }
+  /* 这里调用 */
   const proxy = new Proxy(
     target,
     targetType === TargetType.COLLECTION ? collectionHandlers : baseHandlers
