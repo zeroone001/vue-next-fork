@@ -115,6 +115,9 @@ export type ShallowReactive<T> = T & { [ShallowReactiveMarker]?: true }
  * level properties are reactive. It also does not auto-unwrap refs (even at the
  * root level).
  */
+/* 
+  shallowReactiveHandlers 处理代理
+*/
 export function shallowReactive<T extends object>(
   target: T
 ): ShallowReactive<T> {
@@ -155,6 +158,10 @@ export type DeepReadonly<T> = T extends Builtin
  * Creates a readonly copy of the original object. Note the returned copy is not
  * made reactive, but `readonly` can be called on an already reactive object.
  */
+/* 
+
+  readonly 函数的定义位置
+*/
 export function readonly<T extends object>(
   target: T
 ): DeepReadonly<UnwrapNestedRefs<T>> {
@@ -254,6 +261,14 @@ export function isProxy(value: unknown): boolean {
   return isReactive(value) || isReadonly(value)
 }
 
+/* 
+  这个函数挺重要的
+  返回reactive和readonly 代理的原始对象
+
+*/
+/* 
+    针对这个属性 ReactiveFlags.RAW 会直接返回target
+  */
 export function toRaw<T>(observed: T): T {
   const raw = observed && (observed as Target)[ReactiveFlags.RAW]
   return raw ? toRaw(raw) : observed

@@ -178,10 +178,16 @@ function createSetter(shallow = false) {
   ): boolean {
     /* 旧值 */
     let oldValue = (target as any)[key]
+
     if (!shallow) {
+      /* 不是浅代理 */
+      /* 获取本身的值，不是响应式的值 */
       value = toRaw(value)
       oldValue = toRaw(oldValue)
       if (!isArray(target) && isRef(oldValue) && !isRef(value)) {
+        /* 
+          不是数组，并且，旧值是ref, 新值不是ref，执行下面的操作
+        */
         oldValue.value = value
         return true
       }
@@ -270,6 +276,7 @@ export const readonlyHandlers: ProxyHandler<object> = {
 export const shallowReactiveHandlers = /*#__PURE__*/ extend(
   {},
   mutableHandlers,
+  /* get, set 覆盖基础的 */
   {
     get: shallowGet,
     set: shallowSet

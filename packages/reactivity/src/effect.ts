@@ -52,6 +52,14 @@ export const MAP_KEY_ITERATE_KEY = Symbol(__DEV__ ? 'Map key iterate' : '')
 
 /* 
   ReactiveEffect 类
+  收集依赖的类
+  每次setup 都会new ReactiveEffect 
+  在ReactiveEffect 中有deps 收集依赖，把diff控制在了组件级别
+  这个类特别重要
+
+  run
+
+  stop 
 */
 export class ReactiveEffect<T = any> {
   active = true
@@ -65,13 +73,17 @@ export class ReactiveEffect<T = any> {
   onTrack?: (event: DebuggerEvent) => void
   // dev only
   onTrigger?: (event: DebuggerEvent) => void
-
+  /* 
+    学到一个新的知识
+  */
   constructor(
     public fn: () => T,
     public scheduler: EffectScheduler | null = null,
     scope?: EffectScope | null
   ) {
-    /* 第一个参数是函数 */
+    /* 
+      第一个参数是函数  componentUpdateFn
+    */
     recordEffectScope(this, scope)
   }
 

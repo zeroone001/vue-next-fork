@@ -6,6 +6,9 @@ import type { ShallowReactiveMarker } from './reactive'
 import { CollectionTypes } from './collectionHandlers'
 import { createDep, Dep } from './dep'
 
+/* 
+  ref 的 创建使用了类
+*/
 declare const RefSymbol: unique symbol
 
 export interface Ref<T = any> {
@@ -44,7 +47,7 @@ export function trackRefValue(ref: RefBase<any>) {
     }
   }
 }
-
+/* 触发依赖 */
 export function triggerRefValue(ref: RefBase<any>, newVal?: any) {
   ref = toRaw(ref)
   if (ref.dep) {
@@ -94,34 +97,55 @@ function createRef(rawValue: unknown, shallow: boolean) {
   }
   return new RefImpl(rawValue, shallow)
 }
-
+/* 
+  创建ref的类
+  使用类的get和set来监听属性value是否有变化
+*/
 class RefImpl<T> {
   private _value: T
   private _rawValue: T
 
   public dep?: Dep = undefined
+  /* 用于 isRef 函数的判断 */
   public readonly __v_isRef = true
 
   constructor(value: T, public readonly _shallow: boolean) {
+    /* 
+      接受两个参数，一个是 rawValue原始值，一个是shallow，是否是浅代理
+      export const toReactive = <T extends unknown>(value: T): T =>
+  isObject(value) ? reactive(value) : value
+
+  export function toRaw<T>(observed: T): T {
+  const raw = observed && (observed as Target)[ReactiveFlags.RAW]
+  return raw ? toRaw(raw) : observed
+}
+    */
     this._rawValue = _shallow ? value : toRaw(value)
+    /* 代表ref() 里面也可以传对象 */
     this._value = _shallow ? value : toReactive(value)
   }
 
   get value() {
+    /* 依赖收集 */
     trackRefValue(this)
+    /* 直接返回value */
     return this._value
   }
 
   set value(newVal) {
     newVal = this._shallow ? newVal : toRaw(newVal)
     if (hasChanged(newVal, this._rawValue)) {
+      /* 判断新旧两个值是否有变化 */
       this._rawValue = newVal
       this._value = this._shallow ? newVal : toReactive(newVal)
+      /* 触发依赖 */
       triggerRefValue(this, newVal)
     }
   }
 }
-
+/* 
+  这个比较少用，因为是跟shallowRef 一起用的
+*/
 export function triggerRef(ref: Ref) {
   triggerRefValue(ref, __DEV__ ? ref.value : void 0)
 }
@@ -171,6 +195,10 @@ class CustomRefImpl<T> {
   public readonly __v_isRef = true
 
   constructor(factory: CustomRefFactory<T>) {
+    /* 
+      接收一个工厂函数 factory
+      解构工厂函数里面的get set
+    */
     const { get, set } = factory(
       () => trackRefValue(this),
       () => triggerRefValue(this)
@@ -188,6 +216,9 @@ class CustomRefImpl<T> {
   }
 }
 
+/* 
+  创建一个自定义的ref
+*/
 export function customRef<T>(factory: CustomRefFactory<T>): Ref<T> {
   return new CustomRefImpl(factory) as any
 }
@@ -197,12 +228,19 @@ export type ToRefs<T = any> = {
   // a union of multiple Ref<*> types instead of a single Ref<* | *> type.
   [K in keyof T]: T[K] extends Ref ? T[K] : Ref<UnwrapRef<T[K]>>
 }
+/* 
+  toRefs() 函数就是超级常用的函数了
+  将响应式对象，转换为普通对象，并且，每个属性都是ref
+*/
 export function toRefs<T extends object>(object: T): ToRefs<T> {
+  /* 如果object不是 Proxy，报警告 */
   if (__DEV__ && !isProxy(object)) {
     console.warn(`toRefs() expects a reactive object but received a plain one.`)
   }
+  /* 如果是数组的话，创建一个新的数组，用于返回 */
   const ret: any = isArray(object) ? new Array(object.length) : {}
   for (const key in object) {
+    /* 每一个属性都转成ref */
     ret[key] = toRef(object, key)
   }
   return ret
@@ -224,11 +262,17 @@ class ObjectRefImpl<T extends object, K extends keyof T> {
 
 export type ToRef<T> = [T] extends [Ref] ? T : Ref<T>
 
+/* 
+    这个函数是常用的
+    目的是为了给响应式对象上的属性，创建一个ref
+*/
 export function toRef<T extends object, K extends keyof T>(
   object: T,
   key: K
 ): ToRef<T[K]> {
+  /* object 和 key 都是必填 */
   const val = object[key]
+  /* 如果val 已经是ref 类型，直接返回； 否则，使用类 处理 */
   return isRef(val) ? val : (new ObjectRefImpl(object, key) as any)
 }
 

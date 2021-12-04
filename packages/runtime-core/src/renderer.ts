@@ -1249,6 +1249,11 @@ function baseCreateRenderer(
   /* 
     挂载组件
     创建组件实例->设置组件实例->执行带副作用的渲染函数
+    1. createComponentInstance
+
+    2. setupComponent
+
+    3. setupRenderEffect
   */
   const mountComponent: MountComponentFn = (
     initialVNode,
@@ -1266,6 +1271,7 @@ function baseCreateRenderer(
     */
     const compatMountInstance =
       __COMPAT__ && initialVNode.isCompatRoot && initialVNode.component
+      /* 创建实例 */
     const instance: ComponentInternalInstance =
       compatMountInstance ||
       (initialVNode.component = createComponentInstance(
@@ -1316,6 +1322,7 @@ function baseCreateRenderer(
       }
       return
     }
+
     /* 设置并执行带有副作用的渲染函数 */
     setupRenderEffect(
       instance,
@@ -1368,7 +1375,12 @@ function baseCreateRenderer(
     }
   }
   /* 
+    设置并执行带有副作用的渲染函数
+    componentUpdateFn
 
+    ReactiveEffect() 关键
+
+    update()
   */
   const setupRenderEffect: SetupRenderEffectFn = (
     instance,
@@ -1379,6 +1391,7 @@ function baseCreateRenderer(
     isSVG,
     optimized
   ) => {
+    /* componentUpdateFn */
     const componentUpdateFn = () => {
       if (!instance.isMounted) {
         let vnodeHook: VNodeHook | null | undefined
@@ -1412,6 +1425,7 @@ function baseCreateRenderer(
             if (__DEV__) {
               startMeasure(instance, `render`)
             }
+
             instance.subTree = renderComponentRoot(instance)
             if (__DEV__) {
               endMeasure(instance, `render`)
@@ -1621,13 +1635,20 @@ function baseCreateRenderer(
     } // componentUpdateFn
 
     // create reactive effect for rendering
+    /* 
+      收集依赖的类
+    */
     const effect = new ReactiveEffect(
       componentUpdateFn,
       () => queueJob(instance.update),
       instance.scope // track it in component's effect scope
     )
-      /* 创建响应式的副作用函数 */
+      /* 
+      这里是重点
+      创建响应式的副作用函数 
+      */
     const update = (instance.update = effect.run.bind(effect) as SchedulerJob)
+
     update.id = instance.uid
     // allowRecurse
     // #1801, #2043 component render effects should allow recursive updates

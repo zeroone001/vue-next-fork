@@ -579,12 +579,15 @@ export function setupComponent(
 
   const { props, children } = instance.vnode
   const isStateful = isStatefulComponent(instance)
+  /* 初始化 props */
   initProps(instance, props, isStateful, isSSR)
+  /* 初始化 slots */
   initSlots(instance, children)
 
   const setupResult = isStateful
     ? setupStatefulComponent(instance, isSSR)
     : undefined
+
   isInSSRComponentSetup = false
   return setupResult
 }
@@ -596,7 +599,7 @@ function setupStatefulComponent(
   isSSR: boolean
 ) {
   const Component = instance.type as ComponentOptions
-
+  /* 开发环境下 */
   if (__DEV__) {
     if (Component.name) {
       validateComponentName(Component.name, instance.appContext.config)
@@ -621,6 +624,7 @@ function setupStatefulComponent(
       )
     }
   }
+
   // 0. create render proxy property access cache
   instance.accessCache = Object.create(null)
   // 1. create public instance / render proxy
@@ -632,6 +636,7 @@ function setupStatefulComponent(
   // 2. call setup()
   /* 
     setup 方法
+    调用setup 函数
   */
   const { setup } = Component
   if (setup) {
@@ -649,6 +654,7 @@ function setupStatefulComponent(
       ErrorCodes.SETUP_FUNCTION,
       [__DEV__ ? shallowReadonly(instance.props) : instance.props, setupContext]
     )
+
     resetTracking()
     unsetCurrentInstance()
       /* 如果返回的是Promise */
@@ -686,6 +692,7 @@ function setupStatefulComponent(
 }
 /* 
   处理setup 函数执行后，返回的对象
+  主要是 instance.render
 */
 export function handleSetupResult(
   instance: ComponentInternalInstance,
@@ -782,6 +789,10 @@ export function finishComponentSetup(
 
   // template / render function normalization
   // could be already set when returned from setup()
+  /* 
+    如果没设置render
+    下面进行处理
+  */
   if (!instance.render) {
     // only do on-the-fly compile if not in SSR - SSR on-the-fly compliation
     // is done by server-renderer
@@ -821,7 +832,7 @@ export function finishComponentSetup(
         }
       }
     }
-
+    /* 这里是关键 重点 */
     instance.render = (Component.render || NOOP) as InternalRenderFunction
 
     // for runtime-compiled render functions using `with` blocks, the render
