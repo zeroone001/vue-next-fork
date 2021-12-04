@@ -132,7 +132,10 @@ function createGetter(isReadonly = false, shallow = false) {
     // 只读的数据回改变，也就不需要收集依赖
     */
     if (!isReadonly) {
-      /* // 在触发 get 的时候进行依赖收集 */
+      /* 
+      // 在触发 get 的时候进行依赖收集 
+      
+      */
       track(target, TrackOpTypes.GET, key)
     }
     /* shallow 的话，只劫持一层 */

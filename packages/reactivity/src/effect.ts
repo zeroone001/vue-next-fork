@@ -51,11 +51,14 @@ export const ITERATE_KEY = Symbol(__DEV__ ? 'iterate' : '')
 export const MAP_KEY_ITERATE_KEY = Symbol(__DEV__ ? 'Map key iterate' : '')
 
 /* 
+  感觉这个相当于Watcher
   ReactiveEffect 类
   收集依赖的类
   每次setup 都会new ReactiveEffect 
   在ReactiveEffect 中有deps 收集依赖，把diff控制在了组件级别
   这个类特别重要
+
+  activeEffect就是ReactiveEffect的实例 （这句话很重要）
 
   run
 
@@ -87,7 +90,9 @@ export class ReactiveEffect<T = any> {
     */
     recordEffectScope(this, scope)
   }
-
+  /* 
+    这个就是当年Vue2里面的update
+  */
   run() {
     /* active 默认是TRUE */
     if (!this.active) {
@@ -106,7 +111,7 @@ export class ReactiveEffect<T = any> {
         } else {
           cleanupEffect(this)
         }
-        /* 执行函数 */
+        /* 执行函数，里面有patch，就去执行更新DOM */
         return this.fn()
       } finally {
         if (effectTrackDepth <= maxMarkerBits) {
@@ -206,23 +211,31 @@ export function resetTracking() {
   shouldTrack = last === undefined ? true : last
 }
 
+/* 
+  reactive 的 依赖收集
+  reactive 用的 WeakMap 存target
+  用 Map 存 key,和dep
+  dep 是个Set
+*/
 export function track(target: object, type: TrackOpTypes, key: unknown) {
   if (!isTracking()) {
     return
   }
   let depsMap = targetMap.get(target)
+  /* 如果没有存过， set target */
   if (!depsMap) {
     targetMap.set(target, (depsMap = new Map()))
   }
   let dep = depsMap.get(key)
   if (!dep) {
+    /* dep 值 是个Set */
     depsMap.set(key, (dep = createDep()))
   }
 
   const eventInfo = __DEV__
     ? { effect: activeEffect, target, type, key }
     : undefined
-
+  /* dep 里面存了 ReactiveEffect 的实例 */
   trackEffects(dep, eventInfo)
 }
 
@@ -249,6 +262,7 @@ export function trackEffects(
   }
 
   if (shouldTrack) {
+    /* 把activeEffect 塞到dep里面 */
     dep.add(activeEffect!)
     activeEffect!.deps.push(dep)
     if (__DEV__ && activeEffect!.onTrack) {
@@ -263,7 +277,10 @@ export function trackEffects(
     }
   }
 }
-
+/* 
+  reactive 的 trigger
+  触发依赖， 也就是notice， 从而更新视图
+*/
 export function trigger(
   target: object,
   type: TriggerOpTypes,
@@ -275,6 +292,7 @@ export function trigger(
   const depsMap = targetMap.get(target)
   if (!depsMap) {
     // never been tracked
+    /* 如果没有被收集，就直接返回 */
     return
   }
 
@@ -327,7 +345,9 @@ export function trigger(
   const eventInfo = __DEV__
     ? { target, type, key, newValue, oldValue, oldTarget }
     : undefined
-
+  /* 
+    执行 triggerEffects  也就是 notice 去触发 实例的 run 函数
+  */
   if (deps.length === 1) {
     if (deps[0]) {
       if (__DEV__) {
@@ -350,22 +370,41 @@ export function trigger(
     }
   }
 }
-
+/*  
+  触发依赖
+  这里相当于notice
+  scheduler: 调度程序
+*/
 export function triggerEffects(
   dep: Dep | ReactiveEffect[],
   debuggerEventExtraInfo?: DebuggerEventExtraInfo
 ) {
   // spread into array for stabilization
   for (const effect of isArray(dep) ? dep : [...dep]) {
+
     if (effect !== activeEffect || effect.allowRecurse) {
       if (__DEV__ && effect.onTrigger) {
         effect.onTrigger(extend({ effect }, debuggerEventExtraInfo))
       }
+      // 如果有scheduler 执行scheduler
       if (effect.scheduler) {
         effect.scheduler()
       } else {
+        /* 调用run函数 像是VUE2 里面的update */
         effect.run()
       }
     }
   }
 }
+
+/* 
+  总结： 
+
+  ref  和 reactive 的区别就是，dep 存储位置的不同
+
+  ref 是把 dep 放在了RefImpl 实例中
+  reactive 是把 dep 放在了公共targetMap中
+
+  参考资料： https://juejin.cn/post/7033604157340811300
+
+*/

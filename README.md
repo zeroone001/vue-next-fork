@@ -9,7 +9,7 @@
 5. render(vnode, container) 作用： 将VNode渲染到容器container上
 6. patch(n1, n2, container)；n1 一开始是空的，根据n2的类型执行不同的函数，如果是组件，就会执行 processComponent
 7. processComponent(n1, n2, container); 执行组件的挂载或者更新， 因为n1一开始是空，所以直接执行挂载 mountComponent
-8. mountComponent(initialVNode, container,); 创建组件实例 createComponentInstance ，设置数据状态 setupComponent
+8. mountComponent(initialVNode, container); 创建组件实例 createComponentInstance ，设置数据状态 setupComponent
 9. setupComponent(); 位于component.ts
 10. setupStatefulComponent() 调用 callWithErrorHandling，也就是 调用setup 函数
 11. callWithErrorHandling() 调用setup() 传入两个参数 props 和  setupContext

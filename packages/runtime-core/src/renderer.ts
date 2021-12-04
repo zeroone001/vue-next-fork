@@ -376,7 +376,7 @@ function baseCreateRenderer(
   // style in order to prevent being inlined by minifiers.
   /* 
     第一个函数就定义了patch，说明是很重要的
-
+    patch 就在render 里面放着
   */
   const patch: PatchFn = (
     n1, /* 旧节点 */
@@ -506,7 +506,7 @@ function baseCreateRenderer(
     if (ref != null && parentComponent) {
       setRef(ref, n1 && n1.ref, parentSuspense, n2 || n1, !n2)
     }
-  }
+  } // patch end 
 
   const processText: ProcessTextOrCommentFn = (n1, n2, container, anchor) => {
     if (n1 == null) {
@@ -1393,9 +1393,10 @@ function baseCreateRenderer(
   ) => {
     /* componentUpdateFn 
       这个函数很大呀
+      而且很重要
       1. beforeMount
 
-      2. patch
+      2. patch （这个很关键）
 
       3. mounted
 

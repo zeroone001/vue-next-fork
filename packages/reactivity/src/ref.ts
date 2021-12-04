@@ -53,10 +53,11 @@ export function trackRefValue(ref: RefBase<any>) {
   }
 }
 
-/* 触发依赖 */
+/* 触发依赖， 触发更新视图 */
 export function triggerRefValue(ref: RefBase<any>, newVal?: any) {
   ref = toRaw(ref)
   if (ref.dep) {
+    /* 存在dep 属性，值为Set */
     if (__DEV__) {
       triggerEffects(ref.dep, {
         target: ref,
@@ -132,7 +133,10 @@ class RefImpl<T> {
   }
 
   get value() {
-    /* 依赖收集 */
+    /* 依赖收集
+      注意，这里把RefImpl实例传进去了，
+      也就是说，把dep 放在了 RefImpl 上面
+    */
     trackRefValue(this)
     /* 直接返回value */
     return this._value
