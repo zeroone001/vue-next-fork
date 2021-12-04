@@ -1391,9 +1391,20 @@ function baseCreateRenderer(
     isSVG,
     optimized
   ) => {
-    /* componentUpdateFn */
+    /* componentUpdateFn 
+      这个函数很大呀
+      1. beforeMount
+
+      2. patch
+
+      3. mounted
+
+
+    */
     const componentUpdateFn = () => {
+      /* 如果没有挂载过 */
       if (!instance.isMounted) {
+
         let vnodeHook: VNodeHook | null | undefined
         const { el, props } = initialVNode
         const { bm, m, parent } = instance
@@ -1404,11 +1415,13 @@ function baseCreateRenderer(
         if (bm) {
           invokeArrayFns(bm)
         }
+
         // onVnodeBeforeMount
         if (
           !isAsyncWrapperVNode &&
           (vnodeHook = props && props.onVnodeBeforeMount)
         ) {
+          /* 触发 beforeMount 钩子函数 */
           invokeVNodeHook(vnodeHook, parent, initialVNode)
         }
         if (
@@ -1493,6 +1506,7 @@ function baseCreateRenderer(
         ) {
           const scopedInitialVNode = initialVNode
           queuePostRenderEffect(
+            /*  invokeVNodeHook mounted 钩子函数*/
             () => invokeVNodeHook(vnodeHook!, parent, scopedInitialVNode),
             parentSuspense
           )
@@ -1522,6 +1536,7 @@ function baseCreateRenderer(
             )
           }
         }
+        /* 设置 isMounted 为已经挂载完成 */
         instance.isMounted = true
 
         if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
@@ -1531,6 +1546,9 @@ function baseCreateRenderer(
         // #2458: deference mount-only object parameters to prevent memleaks
         initialVNode = container = anchor = null as any
       } else {
+        /* 
+          更新组件
+        */
         // updateComponent
         // This is triggered by mutation of component's own state (next: null)
         // OR parent calling processComponent (next: VNode)

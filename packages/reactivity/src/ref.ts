@@ -30,10 +30,15 @@ type RefBase<T> = {
   value: T
 }
 
+/* 
+  ref 的 依赖收集
+*/
 export function trackRefValue(ref: RefBase<any>) {
   if (isTracking()) {
     ref = toRaw(ref)
+    /* 之前如果没有添加dep, 那么create */
     if (!ref.dep) {
+      /* 创建了一个 Set */
       ref.dep = createDep()
     }
     if (__DEV__) {
@@ -47,6 +52,7 @@ export function trackRefValue(ref: RefBase<any>) {
     }
   }
 }
+
 /* 触发依赖 */
 export function triggerRefValue(ref: RefBase<any>, newVal?: any) {
   ref = toRaw(ref)

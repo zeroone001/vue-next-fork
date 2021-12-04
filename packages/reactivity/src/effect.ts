@@ -74,7 +74,8 @@ export class ReactiveEffect<T = any> {
   // dev only
   onTrigger?: (event: DebuggerEvent) => void
   /* 
-    学到一个新的知识
+    学到一个新的知识,
+    在参数前面加public，就不需要提前定义了，可以直接this.fn() 使用
   */
   constructor(
     public fn: () => T,
@@ -88,7 +89,9 @@ export class ReactiveEffect<T = any> {
   }
 
   run() {
+    /* active 默认是TRUE */
     if (!this.active) {
+      /* 如果是FALSE的话，直接执行函数 componentUpdateFn */
       return this.fn()
     }
     if (!effectStack.includes(this)) {
@@ -103,6 +106,7 @@ export class ReactiveEffect<T = any> {
         } else {
           cleanupEffect(this)
         }
+        /* 执行函数 */
         return this.fn()
       } finally {
         if (effectTrackDepth <= maxMarkerBits) {
@@ -125,6 +129,7 @@ export class ReactiveEffect<T = any> {
       if (this.onStop) {
         this.onStop()
       }
+      /* 执行stop，关闭active */
       this.active = false
     }
   }
@@ -225,6 +230,9 @@ export function isTracking() {
   return shouldTrack && activeEffect !== undefined
 }
 
+/* 
+  这个函数很重要，依赖收集
+*/
 export function trackEffects(
   dep: Dep,
   debuggerEventExtraInfo?: DebuggerEventExtraInfo
