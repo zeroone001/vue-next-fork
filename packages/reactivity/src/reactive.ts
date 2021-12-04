@@ -26,7 +26,10 @@ export interface Target {
   [ReactiveFlags.IS_READONLY]?: boolean
   [ReactiveFlags.RAW]?: any
 }
-
+/* 
+  用于缓存
+  下面这四个Map都是用于缓存的
+*/
 export const reactiveMap = new WeakMap<Target, any>()
 export const shallowReactiveMap = new WeakMap<Target, any>()
 export const readonlyMap = new WeakMap<Target, any>()
@@ -213,8 +216,12 @@ function createReactiveObject(
     return target
   }
   // target already has corresponding Proxy
+  /* 
+    先获取，是否缓存过 target
+  */
   const existingProxy = proxyMap.get(target)
   if (existingProxy) {
+    /* 如果之前缓存过，那么直接返回 */
     return existingProxy
   }
   // only a whitelist of value types can be observed.

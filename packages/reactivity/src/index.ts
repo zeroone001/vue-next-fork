@@ -15,6 +15,7 @@ export {
   ShallowUnwrapRef,
   RefUnwrapBailTypes
 } from './ref'
+/* reactive 文件里 主要是定义了 Vue文档里的 响应式基础API部分 */
 export {
   reactive,
   readonly,

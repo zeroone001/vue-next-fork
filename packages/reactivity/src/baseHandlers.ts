@@ -229,7 +229,9 @@ function ownKeys(target: object): (string | symbol)[] {
   track(target, TrackOpTypes.ITERATE, isArray(target) ? 'length' : ITERATE_KEY)
   return Reflect.ownKeys(target)
 }
-
+/* 
+  这是最基础的 handlers
+*/
 export const mutableHandlers: ProxyHandler<object> = {
   get,
   set,
@@ -237,10 +239,14 @@ export const mutableHandlers: ProxyHandler<object> = {
   has,
   ownKeys
 }
+/* 
+  这是readonly 的handlers
 
+*/
 export const readonlyHandlers: ProxyHandler<object> = {
   get: readonlyGet,
   set(target, key) {
+    /* 在开发环境下，直接报警告，不能修改值 */
     if (__DEV__) {
       console.warn(
         `Set operation on key "${String(key)}" failed: target is readonly.`,
@@ -250,6 +256,7 @@ export const readonlyHandlers: ProxyHandler<object> = {
     return true
   },
   deleteProperty(target, key) {
+    /* 也不能删除属性 */
     if (__DEV__) {
       console.warn(
         `Delete operation on key "${String(key)}" failed: target is readonly.`,
