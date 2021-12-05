@@ -9,7 +9,9 @@ import {
   newTracked,
   wasTracked
 } from './dep'
-
+/* 
+  下面定义了几个全局变量
+*/
 // The main WeakMap that stores {target -> key -> dep} connections.
 // Conceptually, it's easier to think of a dependency as a Dep class
 // which maintains a Set of subscribers, but we simply store them as
@@ -19,6 +21,7 @@ type KeyToDepMap = Map<any, Dep>
 const targetMap = new WeakMap<any, KeyToDepMap>()
 
 // The number of effects currently being tracked recursively.
+
 let effectTrackDepth = 0
 
 export let trackOpBit = 1
@@ -108,6 +111,7 @@ export class ReactiveEffect<T = any> {
         trackOpBit = 1 << ++effectTrackDepth
 
         if (effectTrackDepth <= maxMarkerBits) {
+          /* 初始化dep 标记为收集过的依赖 */
           initDepMarkers(this)
         } else {
           cleanupEffect(this)
@@ -140,7 +144,9 @@ export class ReactiveEffect<T = any> {
     }
   }
 }
-
+/* 
+  清除依赖的所有dep中删除effect 清除effect的信息
+*/
 function cleanupEffect(effect: ReactiveEffect) {
   const { deps } = effect
   if (deps.length) {
@@ -198,17 +204,22 @@ let shouldTrack = true
 const trackStack: boolean[] = []
 /* 
   给数组使用的
+  全局暂停追踪
 */
 export function pauseTracking() {
   trackStack.push(shouldTrack)
   shouldTrack = false
 }
-
+/* 
+  全局允许追踪
+*/
 export function enableTracking() {
   trackStack.push(shouldTrack)
   shouldTrack = true
 }
-
+/* 
+  恢复到 enableTracking() 或者是 pauseTracking()之前
+*/
 export function resetTracking() {
   const last = trackStack.pop()
   shouldTrack = last === undefined ? true : last
@@ -256,7 +267,7 @@ export function track(target: object, type: TrackOpTypes, key: unknown) {
   trackEffects(dep, eventInfo)
 }
 /* 
-  正在track
+  判断是否应该追踪
 */
 export function isTracking() {
   return shouldTrack && activeEffect !== undefined
@@ -272,8 +283,12 @@ export function trackEffects(
   
   let shouldTrack = false
   if (effectTrackDepth <= maxMarkerBits) {
+    /* 验证是否为新收集的依赖 */
     if (!newTracked(dep)) {
       dep.n |= trackOpBit // set newly tracked
+      /* 
+        判断是否是收集过的依赖
+      */
       shouldTrack = !wasTracked(dep)
     }
   } else {

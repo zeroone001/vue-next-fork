@@ -27,14 +27,19 @@ export const createDep = (effects?: ReactiveEffect[]): Dep => {
   dep.n = 0
   return dep
 }
-
+/* 
+  验证是否为收集过的依赖
+*/
 export const wasTracked = (dep: Dep): boolean => (dep.w & trackOpBit) > 0
-
+/* 
+  验证是否为新收集的依赖
+*/
 export const newTracked = (dep: Dep): boolean => (dep.n & trackOpBit) > 0
 
 export const initDepMarkers = ({ deps }: ReactiveEffect) => {
   if (deps.length) {
     for (let i = 0; i < deps.length; i++) {
+      // 标记依赖已经收集
       deps[i].w |= trackOpBit // set was tracked
     }
   }
