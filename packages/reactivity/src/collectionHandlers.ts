@@ -358,7 +358,10 @@ function createInstrumentationGetter(isReadonly: boolean, shallow: boolean) {
     )
   }
 }
-
+/* 
+  处理Set，Map
+  只有get
+*/
 export const mutableCollectionHandlers: ProxyHandler<CollectionTypes> = {
   get: /*#__PURE__*/ createInstrumentationGetter(false, false)
 }

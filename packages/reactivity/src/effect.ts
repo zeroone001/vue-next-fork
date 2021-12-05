@@ -195,7 +195,9 @@ export function stop(runner: ReactiveEffectRunner) {
 
 let shouldTrack = true
 const trackStack: boolean[] = []
-
+/* 
+  给数组使用的
+*/
 export function pauseTracking() {
   trackStack.push(shouldTrack)
   shouldTrack = false
@@ -302,6 +304,7 @@ export function trigger(
     // trigger all effects for target
     deps = [...depsMap.values()]
   } else if (key === 'length' && isArray(target)) {
+    /* 数组 */
     depsMap.forEach((dep, key) => {
       if (key === 'length' || key >= (newValue as number)) {
         deps.push(dep)

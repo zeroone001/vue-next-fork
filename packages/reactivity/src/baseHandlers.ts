@@ -47,12 +47,18 @@ const shallowReadonlyGet = /*#__PURE__*/ createGetter(true, true)
 
 const arrayInstrumentations = /*#__PURE__*/ createArrayInstrumentations()
 
+/* 
+  这个函数对数组来说很重要
+  https://juejin.cn/post/6844904056356339720
+*/
 function createArrayInstrumentations() {
   const instrumentations: Record<string, Function> = {}
   // instrument identity-sensitive Array methods to account for possible reactive
   // values
+  /* includes，indexOf， lastIndexOf 这三个方法是不会被监听的  */
   ;(['includes', 'indexOf', 'lastIndexOf'] as const).forEach(key => {
     instrumentations[key] = function (this: unknown[], ...args: unknown[]) {
+      // 得到对象的原生模式然后执行原生的方法
       const arr = toRaw(this) as any
       for (let i = 0, l = this.length; i < l; i++) {
         track(arr, TrackOpTypes.GET, i + '')
@@ -69,8 +75,12 @@ function createArrayInstrumentations() {
   })
   // instrument length-altering mutation methods to avoid length being tracked
   // which leads to infinite loops in some cases (#2137)
+  /* 下面这些方法，是要监听的
+    sort 和 reverse 没有了
+  */
   ;(['push', 'pop', 'shift', 'unshift', 'splice'] as const).forEach(key => {
     instrumentations[key] = function (this: unknown[], ...args: unknown[]) {
+      /* 原来收集依赖是在这，我以为没加收集依赖 */
       pauseTracking()
       const res = (toRaw(this) as any)[key].apply(this, args)
       resetTracking()
@@ -111,10 +121,16 @@ function createGetter(isReadonly = false, shallow = false) {
       /* toRaw() 函数， 执行到这里了 */
       return target
     }
+
     /* 判断是不是数组 */
     const targetIsArray = isArray(target)
 
     if (!isReadonly && targetIsArray && hasOwn(arrayInstrumentations, key)) {
+      /* 
+        数组的话，直接返回了
+        这里也是做了依赖收集的
+        在这个里面 arrayInstrumentations
+       */
       return Reflect.get(arrayInstrumentations, key, receiver)
     }
     /* 
@@ -134,7 +150,6 @@ function createGetter(isReadonly = false, shallow = false) {
     if (!isReadonly) {
       /* 
       // 在触发 get 的时候进行依赖收集 
-      
       */
       track(target, TrackOpTypes.GET, key)
     }
@@ -154,7 +169,10 @@ function createGetter(isReadonly = false, shallow = false) {
       /* 
         如果是对象的话
         再执行reactive代理，每一层都代理
-        如果是只读的话，就直接返回
+        如果是只读的话，就直接返回 readonly后的
+        注意： 这里是延迟代理
+        这里注意，只会代理第一层的数据，只有在读取数据触发get 才会把嵌套的对象转化成响应式对象
+        Vue2里面，是直接递归把所有的数据全部转化成响应式对象
        */
       // Convert returned value into a proxy as well. we do the isObject check
       // here to avoid invalid value warning. Also need to lazy access readonly
@@ -202,6 +220,7 @@ function createSetter(shallow = false) {
       isArray(target) && isIntegerKey(key)
         ? Number(key) < target.length
         : hasOwn(target, key)
+
     const result = Reflect.set(target, key, value, receiver)
     // don't trigger if target is something up in the prototype chain of original
     if (target === toRaw(receiver)) {
@@ -209,6 +228,7 @@ function createSetter(shallow = false) {
       if (!hadKey) {
         trigger(target, TriggerOpTypes.ADD, key, value)
       } else if (hasChanged(value, oldValue)) {
+
         trigger(target, TriggerOpTypes.SET, key, value, oldValue)
       }
     }

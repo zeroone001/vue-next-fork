@@ -40,7 +40,9 @@ const enum TargetType {
   COMMON = 1,
   COLLECTION = 2
 }
+/* 
 
+*/
 function targetTypeMap(rawType: string) {
   switch (rawType) {
     case 'Object':
@@ -55,7 +57,12 @@ function targetTypeMap(rawType: string) {
       return TargetType.INVALID
   }
 }
+/* 
+  // 冻结对象也是不可扩展.
+  var frozen = Object.freeze({});
+  Object.isExtensible(frozen); // === false
 
+*/
 function getTargetType(value: Target) {
   return value[ReactiveFlags.SKIP] || !Object.isExtensible(value)
     ? TargetType.INVALID
@@ -193,12 +200,11 @@ export function shallowReadonly<T extends object>(
 }
 
 /* 
-
   reactive 核心函数
   createReactiveObject 函数核心就是Proxy
   目的是可以监听到用户的get 和 set的动作
   使用缓存做了优化
-
+  proxyMap 其实就是reactiveMap， 用来做缓存的
 */
 function createReactiveObject(
   target: Target,
@@ -207,6 +213,7 @@ function createReactiveObject(
   collectionHandlers: ProxyHandler<any>,
   proxyMap: WeakMap<Target, any>
 ) {
+  
   /* 如果不是对象的话，直接返回，因为基础类型是要用ref函数处理的 */
   if (!isObject(target)) {
     if (__DEV__) {
@@ -214,8 +221,7 @@ function createReactiveObject(
     }
     return target
   }
-  // target is already a Proxy, return it.
-  // exception: calling readonly() on a reactive object
+  // target 已经是一个proxy对象了，直接返回
   if (
     target[ReactiveFlags.RAW] &&
     !(isReadonly && target[ReactiveFlags.IS_REACTIVE])
@@ -225,6 +231,7 @@ function createReactiveObject(
   // target already has corresponding Proxy
   /* 
     先获取，是否缓存过 target
+    为了解决，一个对象多次使用reactive转化，都是返回同一个响应式对象
   */
   const existingProxy = proxyMap.get(target)
   if (existingProxy) {
@@ -232,17 +239,29 @@ function createReactiveObject(
     return existingProxy
   }
   // only a whitelist of value types can be observed.
+  /* 
+      获取目标类型，用于判断下面的逻辑
+  */
   const targetType = getTargetType(target)
+  /* 如果是冻结对象，也就是说不可扩展的对象，就直接返回target */
   if (targetType === TargetType.INVALID) {
     return target
   }
-  /* 这里调用 */
+  /* 
+    这里是这个函数的关键代码
+    通过proxy代理对象
+    collectionHandlers 这个 指的是 Map, Set, WeakMap, WeakSet 这四种类型的 handlers
+    baseHandlers: Object, Array
+  */
   const proxy = new Proxy(
     target,
     targetType === TargetType.COLLECTION ? collectionHandlers : baseHandlers
   )
-  /* 把proxy给缓存起来 */
+  /* 
+    代理完之后，把proxy给缓存起来 
+  */
   proxyMap.set(target, proxy)
+  // 最后，返回proxy对象
   return proxy
 }
 

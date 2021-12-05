@@ -34,6 +34,30 @@ vue.global.js：是包含编译器和运行时的“完整”构建版本，因�
 vue.runtime.global.js：只包含运行时，并且需要在构建步骤期间预编译模板
 
 
+## reactivity
+
+主要是分为两种，reactive 和 ref
+
+
+## reactive
+
+总体来说，做了两件事，
+
+1. 把对象转化为响应式对象
+2. 收集依赖，更新依赖
+
+### createReactiveObject 函数
+
+* reactive 核心函数
+* createReactiveObject 函数核心就是Proxy
+* 目的是可以监听到用户的get 和 set的动作
+* 使用缓存做了优化
+* 参数proxyMap 其实就是reactiveMap， 用来做缓存的
+
+
+
+## ref
+
 
 
 
