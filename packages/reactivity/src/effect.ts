@@ -15,6 +15,7 @@ import {
 // which maintains a Set of subscribers, but we simply store them as
 // raw Sets to reduce memory overhead.
 type KeyToDepMap = Map<any, Dep>
+/* WeakMap */
 const targetMap = new WeakMap<any, KeyToDepMap>()
 
 // The number of effects currently being tracked recursively.
@@ -218,29 +219,45 @@ export function resetTracking() {
   reactive 用的 WeakMap 存target
   用 Map 存 key,和dep
   dep 是个Set
+  整个track来说，实际有点绕
+  这里存储数据有点绕
+  1. 用 WeakMap 存 key: target, value: new Map()
+  2. Map 存对象的属性和dep: key: target的key, value: new Set()
+  3. Set 里面存 activeEffect 实例
 */
 export function track(target: object, type: TrackOpTypes, key: unknown) {
+  /* 如果正在收集依赖的话，就直接return */
   if (!isTracking()) {
     return
   }
+  /* 
+    防止重复收集依赖
+  */
   let depsMap = targetMap.get(target)
   /* 如果没有存过， set target */
   if (!depsMap) {
     targetMap.set(target, (depsMap = new Map()))
   }
   let dep = depsMap.get(key)
+  /* 如果这个key 没有创建过dep, set 一下 */
   if (!dep) {
-    /* dep 值 是个Set */
+    /* dep 值 是个Set， dep 赋值了一个空的Set */
     depsMap.set(key, (dep = createDep()))
   }
 
   const eventInfo = __DEV__
     ? { effect: activeEffect, target, type, key }
     : undefined
-  /* dep 里面存了 ReactiveEffect 的实例 */
+  /* 
+    dep 里面存了 ReactiveEffect 的实例 
+    收集副作用 effect
+    上面的代码，是为了trackEffects做准备的
+  */
   trackEffects(dep, eventInfo)
 }
-
+/* 
+  正在track
+*/
 export function isTracking() {
   return shouldTrack && activeEffect !== undefined
 }
@@ -252,6 +269,7 @@ export function trackEffects(
   dep: Dep,
   debuggerEventExtraInfo?: DebuggerEventExtraInfo
 ) {
+  
   let shouldTrack = false
   if (effectTrackDepth <= maxMarkerBits) {
     if (!newTracked(dep)) {
@@ -262,9 +280,24 @@ export function trackEffects(
     // Full cleanup mode.
     shouldTrack = !dep.has(activeEffect!)
   }
-
+  /* 
+    activeEffect 是ReactiveEffect 的实例对象，
+    {
+        fn: Function,
+        scheduler: scheduler,
+        active: true,
+        deps: [],
+        run() {},
+        stop() {},
+    }
+    长这个样子
+*/
   if (shouldTrack) {
-    /* 把activeEffect 塞到dep里面 */
+    /* 
+      把 activeEffect 塞到dep里面 
+      把实例对象存起来
+      activeEffect 后面带叹号，是TS的非空断言
+    */
     dep.add(activeEffect!)
     activeEffect!.deps.push(dep)
     if (__DEV__ && activeEffect!.onTrack) {
@@ -282,6 +315,7 @@ export function trackEffects(
 /* 
   reactive 的 trigger
   触发依赖， 也就是notice， 从而更新视图
+  https://juejin.cn/post/7036367619221356575
 */
 export function trigger(
   target: object,
@@ -291,20 +325,24 @@ export function trigger(
   oldValue?: unknown,
   oldTarget?: Map<unknown, unknown> | Set<unknown>
 ) {
+  // 从 存储 target中的WeakMap 获取目标对象
   const depsMap = targetMap.get(target)
   if (!depsMap) {
     // never been tracked
     /* 如果没有被收集，就直接返回 */
     return
   }
-
+  /* 暂存依赖数据 */
   let deps: (Dep | undefined)[] = []
   if (type === TriggerOpTypes.CLEAR) {
     // collection being cleared
     // trigger all effects for target
+    /* 清空依赖 */
     deps = [...depsMap.values()]
   } else if (key === 'length' && isArray(target)) {
-    /* 数组 */
+    /* 数组
+      处理数组通过 length 变更的情况
+     */
     depsMap.forEach((dep, key) => {
       if (key === 'length' || key >= (newValue as number)) {
         deps.push(dep)
@@ -312,6 +350,7 @@ export function trigger(
     })
   } else {
     // schedule runs for SET | ADD | DELETE
+    // 通过 schedule runs 的情况
     if (key !== void 0) {
       deps.push(depsMap.get(key))
     }
@@ -356,6 +395,7 @@ export function trigger(
       if (__DEV__) {
         triggerEffects(deps[0], eventInfo)
       } else {
+        /* 执行 更新依赖 effect */
         triggerEffects(deps[0])
       }
     }
@@ -391,6 +431,7 @@ export function triggerEffects(
       }
       // 如果有scheduler 执行scheduler
       if (effect.scheduler) {
+        // 是为了提供我想要让你什么时候执行就什么时候执行的能力，也就是可以自己调度的能力。
         effect.scheduler()
       } else {
         /* 调用run函数 像是VUE2 里面的update */

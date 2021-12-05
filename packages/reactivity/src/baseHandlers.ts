@@ -49,7 +49,10 @@ const arrayInstrumentations = /*#__PURE__*/ createArrayInstrumentations()
 
 /* 
   这个函数对数组来说很重要
+  这是get 中的处理数组的函数
+  目的就是返回一个对象，并且定义了原生的key, 也就是重写了数组里的原生方法
   https://juejin.cn/post/6844904056356339720
+  instrumentations： 中文，仪器
 */
 function createArrayInstrumentations() {
   const instrumentations: Record<string, Function> = {}
@@ -58,31 +61,42 @@ function createArrayInstrumentations() {
   /* includes，indexOf， lastIndexOf 这三个方法是不会被监听的  */
   ;(['includes', 'indexOf', 'lastIndexOf'] as const).forEach(key => {
     instrumentations[key] = function (this: unknown[], ...args: unknown[]) {
-      // 得到对象的原生模式然后执行原生的方法
+      // 得到对象的原生数据然后执行原生的方法
+      /* 
+        为了做一些不想被监听的事情，目的是为了提升性能
+      */
       const arr = toRaw(this) as any
       for (let i = 0, l = this.length; i < l; i++) {
+        // 收集依赖
         track(arr, TrackOpTypes.GET, i + '')
       }
       // we run the method using the original args first (which may be reactive)
+      /* 执行原生的方法，获取结果res */
       const res = arr[key](...args)
       if (res === -1 || res === false) {
         // if that didn't work, run it again using raw values.
+        /* 如果没获取到值的话，再把args toRaw，再执行一遍方法 */
+        /* 防止传入的值，也是响应式对象 */
         return arr[key](...args.map(toRaw))
       } else {
+        /* 获取到了，就直接返回 */
         return res
       }
     }
   })
   // instrument length-altering mutation methods to avoid length being tracked
   // which leads to infinite loops in some cases (#2137)
-  /* 下面这些方法，是要监听的
+  /* 
+    处理导致数组本身改变的api
     sort 和 reverse 没有了
   */
   ;(['push', 'pop', 'shift', 'unshift', 'splice'] as const).forEach(key => {
     instrumentations[key] = function (this: unknown[], ...args: unknown[]) {
-      /* 原来收集依赖是在这，我以为没加收集依赖 */
+      /* 开启依赖收集 */
       pauseTracking()
+      // 执行原生的方法
       const res = (toRaw(this) as any)[key].apply(this, args)
+      /* 关闭依赖收集 */
       resetTracking()
       return res
     }
@@ -91,8 +105,7 @@ function createArrayInstrumentations() {
 }
 /* 
   createGetter 接受两个参数
-  1， 是否只读，2， 浅代理
-
+  1，是否只读，2， 浅代理
 */
 function createGetter(isReadonly = false, shallow = false) {
   /*  */
@@ -158,7 +171,7 @@ function createGetter(isReadonly = false, shallow = false) {
       /* 直接return */
       return res
     }
-
+    /* 如果是ref 类型 */
     if (isRef(res)) {
       // ref unwrapping - does not apply for Array + integer key.
       const shouldUnwrap = !targetIsArray || !isIntegerKey(key)
@@ -215,20 +228,26 @@ function createSetter(shallow = false) {
     } else {
       // in shallow mode, objects are set as-is regardless of reactive or not
     }
-
+    /* 判断要设置的key 存不存在 */
     const hadKey =
       isArray(target) && isIntegerKey(key)
         ? Number(key) < target.length
         : hasOwn(target, key)
-
+    /* 设置新值 */
     const result = Reflect.set(target, key, value, receiver)
-    // don't trigger if target is something up in the prototype chain of original
+
+    // receiver : Proxy或者继承Proxy的对象
+    /*  
+      确保依赖的数据源是同一个对象
+      if 用于判断不是继承自proxy的对象，也就是说，如果是原型链中的东西，就不要触发
+    */
     if (target === toRaw(receiver)) {
       /* 触发依赖 */
       if (!hadKey) {
+        /* 新增数据，不存在key的话，走add */
         trigger(target, TriggerOpTypes.ADD, key, value)
       } else if (hasChanged(value, oldValue)) {
-
+        /* 存在数据，已经有 key 的话 ，直接set */
         trigger(target, TriggerOpTypes.SET, key, value, oldValue)
       }
     }

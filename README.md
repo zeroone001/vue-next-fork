@@ -55,6 +55,23 @@ vue.runtime.global.js：只包含运行时，并且需要在构建步骤期间�
 * 参数proxyMap 其实就是reactiveMap， 用来做缓存的
 
 
+总结：
+
+Vue3 通过两个API，Proxy和Reflect 把普通对象转换成响应式对象
+
+当数据读取的时候，会触发get收集依赖，收集存储在一个WeakMap中，其中key是target（目标对象），value是一个Map数据结构，这个Map的key是我们读取数据对应的key（target的key），value是一个Set数据结构。Set存储的是activeEffect
+
+当数据变更的时候，会触发set更新依赖，更新依赖的时候，会先去WeakMap中找到target对应的数据，找到后经过一番依赖数据标准后，遍历依赖，执行依赖的每一个activeEffect
+
+1. 为什么用weakMap 存储响应式对象？
+  用weakMap的用处防止内存泄漏，当变量的引用不存在的时候，自动会清楚内存；缓存响应式数据是为了防止重复收集
+
+2. 依赖数据存储分别用了 weakMap、Map、Set三种数据结构存储，为什么要这样设计呢？
+
+  * 用weakMap与上面原因一样，一是防止内存泄漏，二是防止重复收集
+  * 用Map存储而不是用Object，是因为map的键可以是任意值，而Object 的键必须是一个 String 或是Symbol
+  * 用Set当然是为了去重了，Set存储的是数据不能重复的
+
 
 ## ref
 
@@ -63,7 +80,9 @@ vue.runtime.global.js：只包含运行时，并且需要在构建步骤期间�
 
 
 
+## 参考资料
 
+[带着问题阅读源码Vue3.2-reactive实现原理](https://juejin.cn/post/7036367619221356575)
 
 
 
