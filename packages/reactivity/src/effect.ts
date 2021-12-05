@@ -21,9 +21,13 @@ type KeyToDepMap = Map<any, Dep>
 const targetMap = new WeakMap<any, KeyToDepMap>()
 
 // The number of effects currently being tracked recursively.
-
+/* 
+  记录当前的层数
+*/
 let effectTrackDepth = 0
-
+/*  
+  effect 归属标记
+*/
 export let trackOpBit = 1
 
 /**
@@ -31,6 +35,10 @@ export let trackOpBit = 1
  * This value is chosen to enable modern JS engines to use a SMI on all platforms.
  * When recursion depth is greater, fall back to using a full cleanup.
  */
+/*  
+  effect依赖嵌套最大层数 (注：嵌套就比如在一个依赖中带有其他依赖，如：computed中使用computed) 
+  最多支持30层 如果超出了这个范围 会进入清除模式
+*/
 const maxMarkerBits = 30
 
 export type EffectScheduler = (...args: any[]) => any
@@ -47,8 +55,13 @@ export type DebuggerEventExtraInfo = {
   oldValue?: any
   oldTarget?: Map<any, any> | Set<any>
 }
-
+/* 
+  全局 effectStack “栈”
+*/
 const effectStack: ReactiveEffect[] = []
+/* 
+  当前激活的effect
+*/
 let activeEffect: ReactiveEffect | undefined
 
 export const ITERATE_KEY = Symbol(__DEV__ ? 'iterate' : '')
@@ -85,7 +98,9 @@ export class ReactiveEffect<T = any> {
     在参数前面加public，就不需要提前定义了，可以直接this.fn() 使用
   */
   constructor(
+    /* fn 就是数据变化之后需要执行的副作用函数 */
     public fn: () => T,
+    /* 有时候，effect并不是立刻去执行，而是其他的effect去触发，会先放入队列中，等待执行 */
     public scheduler: EffectScheduler | null = null,
     scope?: EffectScope | null
   ) {
@@ -98,35 +113,64 @@ export class ReactiveEffect<T = any> {
     这个就是当年Vue2里面的update
   */
   run() {
-    /* active 默认是TRUE */
+    /* 
+      run 函数，是依赖执行的开始
+      scheduler内部其实也是调用了run函数
+      依赖的执行模仿了函数的入栈和出栈的方式
+      active 默认是TRUE
+      
+    */
     if (!this.active) {
       /* 如果是FALSE的话，直接执行函数 componentUpdateFn */
       return this.fn()
     }
     if (!effectStack.includes(this)) {
       try {
+        /* 将当前触发的effect进入 栈 区 */
         effectStack.push((activeEffect = this))
+        /* 应该去追踪 */
         enableTracking()
-
+        /* 每嵌套一层，就记录一层 */
         trackOpBit = 1 << ++effectTrackDepth
-
+        /* 
+          如果嵌套的层数，没有超过最大限制，初始化Dep
+        */
         if (effectTrackDepth <= maxMarkerBits) {
-          /* 初始化dep 标记为收集过的依赖 */
+          /* 初始化dep 标记为收集过的依赖
+            记录这个effect的dep全部是已经收集过的
+          */
           initDepMarkers(this)
         } else {
+          /* 一般是不超过，不会执行这里 */
           cleanupEffect(this)
         }
-        /* 执行函数，里面有patch，就去执行更新DOM */
+        /* 执行函数，里面有patch，就去执行更新DOM 
+          按位运算优化追踪
+          执行当前的effect的函数，但是这个函数可能会带有其他依赖
+          这就形成了嵌套依赖
+          trackOpBit 会作为当前依赖的唯一标识
+          每次effectTrackDepth都会加1，执行完后，会减1
+        
+        */
         return this.fn()
       } finally {
         if (effectTrackDepth <= maxMarkerBits) {
+          /* 如果执行完effect之后，没有嵌套依赖，
+          会去栈中找到当前的effect，清除 w,n 标记
+          */
           finalizeDepMarkers(this)
         }
 
         trackOpBit = 1 << --effectTrackDepth
-
+        /* 
+          重置是否应该去追踪，并将当前的 effect 移除栈区
+        */
         resetTracking()
         effectStack.pop()
+        /* 
+          如果n是0，代表所有的effect执行完了，activeEffect 赋值为undefined
+          如果不是0，说明还有effect，指向栈的最后一个effect
+        */
         const n = effectStack.length
         activeEffect = n > 0 ? effectStack[n - 1] : undefined
       }
