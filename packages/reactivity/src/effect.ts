@@ -17,7 +17,25 @@ import {
 // which maintains a Set of subscribers, but we simply store them as
 // raw Sets to reduce memory overhead.
 type KeyToDepMap = Map<any, Dep>
-/* WeakMap */
+/* 
+WeakMap 
+使用WeakMap的原因是因为浏览器会自动的吧WeakMap内部可能没有用的数据当作垃圾回收
+{
+  target1: {
+    key1: {
+      effect1,
+      effect2
+      ...
+    },
+    key2: {
+    }
+    ...
+  },
+  target2: {
+  }
+  ...
+}
+*/
 const targetMap = new WeakMap<any, KeyToDepMap>()
 
 // The number of effects currently being tracked recursively.
@@ -80,13 +98,26 @@ export const MAP_KEY_ITERATE_KEY = Symbol(__DEV__ ? 'Map key iterate' : '')
   run
 
   stop 
+
+  栈：
+  在全局有一个 effectStack 作为执行栈，每当有一个effect开始执行，就会进入 effectStack
+  这就是入栈，直到整个effect执行完毕，就会被移出 effectStack， 就是出栈
+
+
 */
 export class ReactiveEffect<T = any> {
   active = true
+  /* 依赖嵌套
+    将当前的归属于当前effect的所有的dep存储于本身，方便以后直接读取
+  */
   deps: Dep[] = []
 
   // can be attached after creation
+  /* 
+    记录是由于computed产生的effect
+  */
   computed?: boolean
+  /* 允许嵌套依赖 */
   allowRecurse?: boolean
   onStop?: () => void
   // dev only
@@ -155,7 +186,8 @@ export class ReactiveEffect<T = any> {
         return this.fn()
       } finally {
         if (effectTrackDepth <= maxMarkerBits) {
-          /* 如果执行完effect之后，没有嵌套依赖，
+          /* 
+          如果执行完effect之后，没有嵌套依赖，
           会去栈中找到当前的effect，清除 w,n 标记
           */
           finalizeDepMarkers(this)
@@ -176,7 +208,8 @@ export class ReactiveEffect<T = any> {
       }
     }
   }
-
+  /* 停止依赖，和清除effect自身的所有信息, 
+  如果后面有添加onStop函数就执行就行了 */
   stop() {
     if (this.active) {
       cleanupEffect(this)
@@ -218,28 +251,42 @@ export interface ReactiveEffectRunner<T = any> {
   (): T
   effect: ReactiveEffect
 }
+/* 
+  可以很方便的去产生一个effect, 且会返回一个effect runner，
+  可以用于后面停止副作用函数随着数据变化而执行
 
+*/
 export function effect<T = any>(
   fn: () => T,
   options?: ReactiveEffectOptions
 ): ReactiveEffectRunner {
+  /* 
+    如果fn 已经是一个effect函数，就重新指向原始函数
+  */
   if ((fn as ReactiveEffectRunner).effect) {
     fn = (fn as ReactiveEffectRunner).effect.fn
   }
-
+  /* 实例化对象
+    _effect 是一个响应式的副作用函数
+  */
   const _effect = new ReactiveEffect(fn)
   if (options) {
     extend(_effect, options)
     if (options.scope) recordEffectScope(_effect, options.scope)
   }
   if (!options || !options.lazy) {
+    /* 没有配置或者懒加载，立即执行 */
     _effect.run()
   }
+  /* 指定 run函数作为effect的runner */
   const runner = _effect.run.bind(_effect) as ReactiveEffectRunner
+  /* 在runner中保存effect的引用 */
   runner.effect = _effect
   return runner
 }
-
+/* 
+  停止用户自定义的effect
+*/
 export function stop(runner: ReactiveEffectRunner) {
   runner.effect.stop()
 }
@@ -281,12 +328,13 @@ export function resetTracking() {
   3. Set 里面存 activeEffect 实例
 */
 export function track(target: object, type: TrackOpTypes, key: unknown) {
-  /* 如果正在收集依赖的话，就直接return */
+  /* 如果全局不允许收集依赖，就直接return */
   if (!isTracking()) {
     return
   }
   /* 
     防止重复收集依赖
+    找到当前对象对应的depsMap， 没有的话，就直接创建一个
   */
   let depsMap = targetMap.get(target)
   /* 如果没有存过， set target */
@@ -299,7 +347,9 @@ export function track(target: object, type: TrackOpTypes, key: unknown) {
     /* dep 值 是个Set， dep 赋值了一个空的Set */
     depsMap.set(key, (dep = createDep()))
   }
-
+  /* 
+    更新信息
+  */
   const eventInfo = __DEV__
     ? { effect: activeEffect, target, type, key }
     : undefined
@@ -307,6 +357,7 @@ export function track(target: object, type: TrackOpTypes, key: unknown) {
     dep 里面存了 ReactiveEffect 的实例 
     收集副作用 effect
     上面的代码，是为了trackEffects做准备的
+    下面是核心逻辑
   */
   trackEffects(dep, eventInfo)
 }
@@ -387,7 +438,6 @@ export function trigger(
   // 从 存储 target中的WeakMap 获取目标对象
   const depsMap = targetMap.get(target)
   if (!depsMap) {
-    // never been tracked
     /* 如果没有被收集，就直接返回 */
     return
   }
@@ -396,11 +446,15 @@ export function trigger(
   if (type === TriggerOpTypes.CLEAR) {
     // collection being cleared
     // trigger all effects for target
-    /* 清空依赖 */
+    /* 
+      清除操作，执行所有的effect
+      如数组清空、Map和Set清空
+    */
     deps = [...depsMap.values()]
   } else if (key === 'length' && isArray(target)) {
     /* 数组
       处理数组通过 length 变更的情况
+      第二种情况是数据是数组且是新增操作，则会找到数组中所有新增的依赖
      */
     depsMap.forEach((dep, key) => {
       if (key === 'length' || key >= (newValue as number)) {
@@ -448,6 +502,7 @@ export function trigger(
     : undefined
   /* 
     执行 triggerEffects  也就是 notice 去触发 实例的 run 函数
+    一种是数据变化产生的两个嵌套依赖，一种是单纯的数据修改，产生的多个依赖，每个依赖也需要使用creatDep进行包装
   */
   if (deps.length === 1) {
     if (deps[0]) {
