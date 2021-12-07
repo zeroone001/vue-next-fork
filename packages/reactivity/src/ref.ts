@@ -38,7 +38,10 @@ export function trackRefValue(ref: RefBase<any>) {
     ref = toRaw(ref)
     /* 之前如果没有添加dep, 那么create */
     if (!ref.dep) {
-      /* 创建了一个 Set */
+      /* 
+      创建了一个 Set
+      主要是对基础类型使用了 ref.dep 这个存依赖
+       */
       ref.dep = createDep()
     }
     if (__DEV__) {
@@ -81,6 +84,9 @@ export function ref<T extends object>(
 ): [T] extends [Ref] ? T : Ref<UnwrapRef<T>>
 export function ref<T>(value: T): Ref<UnwrapRef<T>>
 export function ref<T = any>(): Ref<T | undefined>
+/* 
+  在这里定义的ref方法
+*/
 export function ref(value?: unknown) {
   return createRef(value, false)
 }
@@ -97,7 +103,10 @@ export function shallowRef<T = any>(): ShallowRef<T | undefined>
 export function shallowRef(value?: unknown) {
   return createRef(value, true)
 }
-
+/* 
+  createRef
+  主要看 类 RefImpl
+*/
 function createRef(rawValue: unknown, shallow: boolean) {
   if (isRef(rawValue)) {
     return rawValue
@@ -120,15 +129,18 @@ class RefImpl<T> {
     /* 
       接受两个参数，一个是 rawValue原始值，一个是shallow，是否是浅代理
       export const toReactive = <T extends unknown>(value: T): T =>
-  isObject(value) ? reactive(value) : value
+      isObject(value) ? reactive(value) : value
 
-  export function toRaw<T>(observed: T): T {
-  const raw = observed && (observed as Target)[ReactiveFlags.RAW]
-  return raw ? toRaw(raw) : observed
-}
+      export function toRaw<T>(observed: T): T {
+      const raw = observed && (observed as Target)[ReactiveFlags.RAW]
+      return raw ? toRaw(raw) : observed
+    }
     */
     this._rawValue = _shallow ? value : toRaw(value)
-    /* 代表ref() 里面也可以传对象 */
+    /* 
+    代表ref() 里面也可以传对象 如果不是浅观察的话，就转化为响应式对象
+    toReactive 函数里面判断了是否是对象，如果不是对象，直接返回value
+     */
     this._value = _shallow ? value : toReactive(value)
   }
 
@@ -153,6 +165,7 @@ class RefImpl<T> {
     }
   }
 }
+
 /* 
   这个比较少用，因为是跟shallowRef 一起用的
 */

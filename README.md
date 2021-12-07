@@ -75,9 +75,15 @@ Vue3 通过两个API，Proxy和Reflect 把普通对象转换成响应式对象
 
 ## ref
 
+总结
 
-
-
+ref这个api即可把包裹基本数据类型，也可以包裹引用数据类型。
+ref会先设置value的get、set属性，
+get的时候会调用trackRefValue，trackRefValue内部调用trackEffects收集依赖并存储到ref.dep中；
+set的时候如果value是对象或者数组，则会reative把普通对象转换响应式数据，然后调用triggerRefValue，把ref.dep拿出来交给triggerEffects执行，更新依赖
+如果包裹的是引用数据类型，其收集依赖和更新依赖的逻辑还是执行reative这个api。
+ref的原理依赖于reactive这个api。
+如果ref包裹基本数据类型，更建议shallowRef这个api，会一些判断，不需要去处理引用数据类型这种情况了。
 
 
 ## 参考资料
