@@ -1323,7 +1323,9 @@ function baseCreateRenderer(
       return
     }
 
-    /* 设置并执行带有副作用的渲染函数 */
+    /* 设置并执行带有副作用的渲染函数
+      副作用渲染函数
+    */
     setupRenderEffect(
       instance,
       initialVNode,
@@ -1380,6 +1382,8 @@ function baseCreateRenderer(
 
     ReactiveEffect() 关键
 
+    instance.update
+
     update()
   */
   const setupRenderEffect: SetupRenderEffectFn = (
@@ -1395,11 +1399,8 @@ function baseCreateRenderer(
       这个函数很大呀
       而且很重要
       1. beforeMount
-
       2. patch （这个很关键）
-
       3. mounted
-
 
     */
     const componentUpdateFn = () => {
@@ -1665,6 +1666,7 @@ function baseCreateRenderer(
       /* 
       这里是重点
       创建响应式的副作用函数 
+
       */
     const update = (instance.update = effect.run.bind(effect) as SchedulerJob)
 
