@@ -1250,9 +1250,7 @@ function baseCreateRenderer(
     挂载组件
     创建组件实例->设置组件实例->执行带副作用的渲染函数
     1. createComponentInstance
-
     2. setupComponent
-
     3. setupRenderEffect
   */
   const mountComponent: MountComponentFn = (
@@ -1343,9 +1341,13 @@ function baseCreateRenderer(
   }
   /* 
   更新组件
+  n1 旧
+n2 新的
  */
   const updateComponent = (n1: VNode, n2: VNode, optimized: boolean) => {
+
     const instance = (n2.component = n1.component)!
+    /* 判断是否需要更新组件 */
     if (shouldUpdateComponent(n1, n2, optimized)) {
       if (
         __FEATURE_SUSPENSE__ &&
@@ -1365,27 +1367,25 @@ function baseCreateRenderer(
       } else {
         // normal update
         instance.next = n2
-        // in case the child component is also queued, remove it to avoid
-        // double updating the same child component in the same flush.
+        /* 子组件也可能因为数据变化而被添加到更新队列里了， 
+移除他们防止对一个子组件重复更新 */
         invalidateJob(instance.update)
-        // instance.update is the reactive effect.
+        /* 执行子组件的副作用渲染函数 */
         instance.update()
       }
     } else {
+      /* 不需要更新，只复制属性 */
       // no update needed. just copy over properties
       n2.component = n1.component
       n2.el = n1.el
       instance.vnode = n2
     }
-  }
+  } // updateComponent
   /* 
     设置并执行带有副作用的渲染函数
     componentUpdateFn
-
     ReactiveEffect() 关键
-
     instance.update
-
     update()
   */
   const setupRenderEffect: SetupRenderEffectFn = (
@@ -1553,9 +1553,6 @@ function baseCreateRenderer(
         /* 
           更新组件
         */
-        // updateComponent
-        // This is triggered by mutation of component's own state (next: null)
-        // OR parent calling processComponent (next: VNode)
         let { next, bu, u, parent, vnode } = instance
         let originNext = next
         let vnodeHook: VNodeHook | null | undefined
