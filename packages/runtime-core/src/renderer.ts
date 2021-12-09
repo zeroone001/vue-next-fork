@@ -396,12 +396,12 @@ function baseCreateRenderer(
 
     // patching & not same type, unmount old tree
     /* 
-      存在旧节点，且，新旧节点不同，则卸载旧节点
+      存在旧节点，且，新旧节点类型不同，则销毁旧节点
     */
     if (n1 && !isSameVNodeType(n1, n2)) {
       anchor = getNextHostNode(n1)
       unmount(n1, parentComponent, parentSuspense, true)
-      n1 = null
+      n1 = null /* 保证后续走mount 逻辑 */
     }
     /* PatchFlags.BAIL：一个特殊标志，表示differ算法应该退出优化模式 */
     if (n2.patchFlag === PatchFlags.BAIL) {
@@ -1341,7 +1341,9 @@ function baseCreateRenderer(
       endMeasure(instance, `mount`)
     }
   }
-
+  /* 
+  更新组件
+ */
   const updateComponent = (n1: VNode, n2: VNode, optimized: boolean) => {
     const instance = (n2.component = n1.component)!
     if (shouldUpdateComponent(n1, n2, optimized)) {
@@ -1406,7 +1408,7 @@ function baseCreateRenderer(
     const componentUpdateFn = () => {
       /* 如果没有挂载过 */
       if (!instance.isMounted) {
-
+        /* 渲染组件 */
         let vnodeHook: VNodeHook | null | undefined
         const { el, props } = initialVNode
         const { bm, m, parent } = instance
@@ -1563,9 +1565,10 @@ function baseCreateRenderer(
 
         // Disallow component effect recursion during pre-lifecycle hooks.
         effect.allowRecurse = false
-
+        /* next 表示新的组件vnode */
         if (next) {
           next.el = vnode.el
+          /* 更新组件vnode 节点信息 */
           updateComponentPreRender(instance, next, optimized)
         } else {
           next = vnode
@@ -1592,22 +1595,30 @@ function baseCreateRenderer(
         if (__DEV__) {
           startMeasure(instance, `render`)
         }
+        /* 渲染新的子树vnode */
         const nextTree = renderComponentRoot(instance)
         if (__DEV__) {
           endMeasure(instance, `render`)
         }
+        /* 缓存旧的子树vnode */
         const prevTree = instance.subTree
+        /* 更新的子树 vnode */
         instance.subTree = nextTree
 
         if (__DEV__) {
           startMeasure(instance, `patch`)
         }
+        /* 
+          组件更新的核心逻辑，根据新旧子树做patch
+         */
         patch(
           prevTree,
           nextTree,
           // parent may have changed if it's in a teleport
-          hostParentNode(prevTree.el!)!,
+          /* 如果在teleport组件中，父节点可能已经改变，所以容器直接找DOM元素父节点 */
+          hostParentNode(prevTree.el!)!, 
           // anchor may have changed if it's in a fragment
+/* 如果在fragment组件中，父节点可能已经改变，所以容器直接找旧DOM元素下一个节点 */
           getNextHostNode(prevTree),
           instance,
           parentSuspense,
