@@ -42,7 +42,9 @@ let accessedAttrs: boolean = false
 export function markAttrsAccessed() {
   accessedAttrs = true
 }
-
+/* 
+  渲染生成对应的subTree 子树 VNode
+*/
 export function renderComponentRoot(
   instance: ComponentInternalInstance
 ): VNode {

@@ -92,6 +92,31 @@ ref的原理依赖于reactive这个api。
 
 
 
+## 性能优化
+
+* 移除一些冷门的feature
+* 引入 tree-shaking (依赖 ES2015模块语法的静态结构， 通过编译阶段的静态分析，找到没有引入的模块，打上标记)
+* 数据劫持
+* Proxy API 是不能监听到内部深层次的对象变化， 因此，处理方式是在Vue3.0 ， 在getter中去递归响应式 （
+这样的好处是，真正访问到的内部对象，才会变成响应式，不是无脑递归， 提升了性能
+）
+
+##  编译优化
+* patch 过程优化
+* Vue2的数据更新，并触发重新渲染的颗粒度是组件级别的
+* Block true 是一个将模板基于动态节点指令切割的嵌套区块，每个区块内部的节点结构是固定的
+* 借助 block tree 把VNode 的更新性能，从跟模板整体大小相关，提升为，与动态内容的数量相关
+* slot 的编译优化
+* 事件侦听函数的缓存优化
+* 在运行时，重写了diff算法
+
+## mixin 问题
+
+* 命名冲突
+* 数据来源不清晰
+
+
+
 
 # vue-next [![npm](https://img.shields.io/npm/v/vue/next.svg)](https://www.npmjs.com/package/vue/v/next) [![build status](https://github.com/vuejs/vue-next/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/vuejs/vue-next/actions/workflows/ci.yml)
 

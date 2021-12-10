@@ -30,7 +30,11 @@ declare module '@vue/reactivity' {
     runtimeDOMBailTypes: Node | Window
   }
 }
-
+/* 
+  渲染相关的一些配置
+  比如，更新属性的方法
+  操作DOM的方法 insertBefore
+*/
 const rendererOptions = extend({ patchProp }, nodeOps)
 
 // lazy create the renderer - this makes core renderer logic tree-shakable
@@ -38,7 +42,9 @@ const rendererOptions = extend({ patchProp }, nodeOps)
 let renderer: Renderer<Element | ShadowRoot> | HydrationRenderer
 
 let enabledHydration = false
-
+/* 
+  创建渲染器对象
+*/
 function ensureRenderer() {
   return (
     renderer ||
@@ -65,6 +71,8 @@ export const hydrate = ((...args) => {
 /* 
     这就是Vue的入口函数
     app.use(store).use(router).mount('#app')
+    1. 创建app 对象
+    2. 调用mount，重写 mount 方法
 */
 export const createApp = ((...args) => {
   /* 
@@ -80,9 +88,19 @@ export const createApp = ((...args) => {
     createAppAPI 函数里面定义的mount
   */
   const { mount } = app
-  /* 重写mount */
+  /* 
+    重写mount
+    因为 api里面的mount是用来支持跨平台渲染的
+    所以这里需要重写
+    containerOrSelector 支持DOM对象，和 选择器字符串
+    从这个mount 开始就真正的进入渲染流程
+  */
   app.mount = (containerOrSelector: Element | ShadowRoot | string): any => {
-    /* 标准化容器 也就是DOM节点 */
+    /* 
+    
+      标准化容器 也就是DOM节点 
+    
+    */
     const container = normalizeContainer(containerOrSelector)
 
     /* 如果获取不到， 直接返回 */

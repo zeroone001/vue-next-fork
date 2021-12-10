@@ -402,17 +402,18 @@ function createBaseVNode(
 ) {
   /* 
     创建虚拟节点
+    JS 对象，描述VNode
   */
   const vnode = {
     __v_isVNode: true,
     __v_skip: true,
-    type,
-    props,
+    type, /* 重要 */
+    props, /* 重要 */
     key: props && normalizeKey(props),
     ref: props && normalizeRef(props),
     scopeId: currentScopeId,
     slotScopeIds: null,
-    children,
+    children, /* 重要 */
     component: null,
     suspense: null,
     ssContent: null,
@@ -484,6 +485,7 @@ function createBaseVNode(
 export { createBaseVNode as createElementVNode }
 /* 
   createVNode 函数在这
+  创建VNode
 */
 export const createVNode = (
   __DEV__ ? createVNodeWithArgsTransform : _createVNode
@@ -542,6 +544,7 @@ function _createVNode(
 
   // class & style normalization.
   /* 
+    处理props的相关逻辑
     style 和 class的标准化
   */
   if (props) {

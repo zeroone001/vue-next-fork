@@ -302,6 +302,7 @@ export function createAppAPI<HostElement>(
         这里是mount对象，挂载到DOM结构上的，
         但是在外面被重写了 
         虽然在外面重写了，但是是先获取的这个方法，也调用了
+        支持跨平台渲染
       */
       mount(
         rootContainer: HostElement,

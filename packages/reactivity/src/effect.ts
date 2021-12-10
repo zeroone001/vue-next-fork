@@ -235,16 +235,16 @@ function cleanupEffect(effect: ReactiveEffect) {
 }
 
 export interface DebuggerOptions {
-  onTrack?: (event: DebuggerEvent) => void
-  onTrigger?: (event: DebuggerEvent) => void
+  onTrack?: (event: DebuggerEvent) => void /* 追踪时触发  */
+  onTrigger?: (event: DebuggerEvent) => void /* 触发回调时触发  */
 }
 
 export interface ReactiveEffectOptions extends DebuggerOptions {
-  lazy?: boolean
-  scheduler?: EffectScheduler
-  scope?: EffectScope
+  lazy?: boolean /* 是否延迟触发effect */
+  scheduler?: EffectScheduler /* 调度函数 */
+  scope?: EffectScope /*  */
   allowRecurse?: boolean
-  onStop?: () => void
+  onStop?: () => void /* 停止监听时触发  */
 }
 
 export interface ReactiveEffectRunner<T = any> {
@@ -254,7 +254,6 @@ export interface ReactiveEffectRunner<T = any> {
 /* 
   可以很方便的去产生一个effect, 且会返回一个effect runner，
   可以用于后面停止副作用函数随着数据变化而执行
-
 */
 export function effect<T = any>(
   fn: () => T,
@@ -264,6 +263,7 @@ export function effect<T = any>(
     如果fn 已经是一个effect函数，就重新指向原始函数
   */
   if ((fn as ReactiveEffectRunner).effect) {
+    /* 取出原始值 */
     fn = (fn as ReactiveEffectRunner).effect.fn
   }
   /* 实例化对象

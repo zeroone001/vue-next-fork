@@ -1,3 +1,21 @@
+/* 
+  这个文件主要是围绕 createRenderer 来展开的
+
+  主要函数
+
+  render 函数
+
+  patch 函数
+
+  processElement 处理 DOM元素
+
+  mountElement 挂载元素
+
+  processComponent 处理组件
+
+  processText 处理 文本
+
+*/
 import {
   Text,
   Fragment,
@@ -646,7 +664,18 @@ function baseCreateRenderer(
     }
   };
 
-  /* 挂载新的元素 */
+  /* 
+  挂载新的元素
+  hostCreateElement 创建元素
+
+    hostSetElementText
+
+    mountChildren
+
+  hostPatchProp 处理属性
+
+  hostInsert 插入DOM容器中
+  */
   const mountElement = (
     vnode: VNode,
     container: RendererElement,
@@ -711,6 +740,7 @@ function baseCreateRenderer(
       // props
       /* 
         当前元素el处理属性相关，如style/class/event等
+        hostPatchProp 函数处理DOM属性，比如setAttribute 等
       */
       if (props) {
         for (const key in props) {
@@ -832,7 +862,10 @@ function baseCreateRenderer(
       }
     }
   }
-
+/* 
+  处理子节点是数组的情况
+  这里执行的是patch， 因为子节点可能是其他类型的VNode
+*/
   const mountChildren: MountChildrenFn = (
     children,
     container,
@@ -848,6 +881,7 @@ function baseCreateRenderer(
       const child = (children[i] = optimized
         ? cloneIfMounted(children[i] as VNode)
         : normalizeVNode(children[i]))
+        /* 递归patch */
       patch(
         null,
         child,
@@ -1223,6 +1257,7 @@ function baseCreateRenderer(
   ) => {
     n2.slotScopeIds = slotScopeIds
     if (n1 == null) {
+      /* 执行挂载组件 */
       if (n2.shapeFlag & ShapeFlags.COMPONENT_KEPT_ALIVE) {
         ;(parentComponent!.ctx as KeepAliveContext).activate(
           n2,
@@ -1243,17 +1278,18 @@ function baseCreateRenderer(
         )
       }
     } else {
+      /* 更新组件 */
       updateComponent(n1, n2, optimized)
     }
   }
   /* 
     挂载组件
     创建组件实例->设置组件实例->执行带副作用的渲染函数
-    1. createComponentInstance
+    1. createComponentInstance 创建组件实例
 
-    2. setupComponent
+    2. setupComponent 设置组件 
 
-    3. setupRenderEffect
+    3. setupRenderEffect 副作用函数
   */
   const mountComponent: MountComponentFn = (
     initialVNode,
@@ -1271,7 +1307,7 @@ function baseCreateRenderer(
     */
     const compatMountInstance =
       __COMPAT__ && initialVNode.isCompatRoot && initialVNode.component
-      /* 创建实例 */
+    /* 创建实例 */
     const instance: ComponentInternalInstance =
       compatMountInstance ||
       (initialVNode.component = createComponentInstance(
@@ -1317,6 +1353,7 @@ function baseCreateRenderer(
       // Give it a placeholder if this is not hydration
       // TODO handle self-defined fallback
       if (!initialVNode.el) {
+        /* createVNode 创建VNode */
         const placeholder = (instance.subTree = createVNode(Comment))
         processCommentNode(null, placeholder, container!, anchor)
       }
@@ -1376,6 +1413,7 @@ function baseCreateRenderer(
   }
   /* 
     设置并执行带有副作用的渲染函数
+
     componentUpdateFn
 
     ReactiveEffect() 关键
@@ -1395,12 +1433,8 @@ function baseCreateRenderer(
       这个函数很大呀
       而且很重要
       1. beforeMount
-
       2. patch （这个很关键）
-
       3. mounted
-
-
     */
     const componentUpdateFn = () => {
       /* 如果没有挂载过 */
@@ -1439,7 +1473,7 @@ function baseCreateRenderer(
             if (__DEV__) {
               startMeasure(instance, `render`)
             }
-
+            /* 渲染生成对应的subTree 子树 VNode */
             instance.subTree = renderComponentRoot(instance)
             if (__DEV__) {
               endMeasure(instance, `render`)
@@ -1683,7 +1717,7 @@ function baseCreateRenderer(
       // @ts-ignore (for scheduler)
       update.ownerInstance = instance
     }
-
+    /* 更新 */
     update()
   }
 
@@ -2418,7 +2452,11 @@ function baseCreateRenderer(
     }
     return hostNextSibling((vnode.anchor || vnode.el)!)
   }
-  /* 渲染函数 */
+  /* 
+  
+  渲染函数 
+  渲染创建好的VNode
+  */
   const render: RootRenderFunction = (vnode, container, isSVG) => {
     if (vnode == null) {
       /* 虚拟节点不存在，就销毁 */
