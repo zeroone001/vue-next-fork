@@ -2162,7 +2162,7 @@ function baseCreateRenderer(
       // 5.3 move and mount
       /* 
         moved 为TRUE 说明有移动
-        getSequence 计算最长递增子序列
+        getSequence 计算最长递增子序列， 这是最复杂的算法
         newIndexToOldIndexMap:  [5, 3, 4, 0] 里面存的值 是旧的子序列的索引
         5 要移动到4的后面，0占位，需要新增一个节点
         假如 newIndexToOldIndexMap 为 [5, 3, 4, 0] 那么 最长递增子序列就是 [1,2] 里面存的是索引
@@ -2171,7 +2171,6 @@ function baseCreateRenderer(
         ? getSequence(newIndexToOldIndexMap)
         : EMPTY_ARR
       j = increasingNewIndexSequence.length - 1
-      // looping backwards so that we can use last patched node as anchor
       /* 
       使用倒序的方式，遍历 toBePatched 是新序列中的要对比的部分的长度 
       方便我们使用最后更新的节点作为锚点
@@ -2197,7 +2196,10 @@ function baseCreateRenderer(
             optimized
           )
         } else if (moved) {
-          /* 没有最长递增子序列（reverse的场景）或者当前的节点索引不在最长递增子序列中，需要移动 */
+          /* 
+          没有最长递增子序列（reverse的场景）或者当前的节点索引不在最长递增子序列中，需要移动
+          移动到上一次操作节点的前面
+          */
           if (j < 0 || i !== increasingNewIndexSequence[j]) {
             move(nextChild, container, anchor, MoveType.REORDER)
           } else {
@@ -2712,7 +2714,12 @@ export function traverseStaticChildren(n1: VNode, n2: VNode, shallow = false) {
     }
   }
 }
-/* 计算最长递增子序列 */
+/* 计算最长递增子序列
+  贪心+ 二分查找
+  贪心是O(n)
+  二分查找是O(logn)
+  总的是 时间复杂度 O(logn)
+*/
 // https://en.wikipedia.org/wiki/Longest_increasing_subsequence
 function getSequence(arr: number[]): number[] {
   const p = arr.slice()
