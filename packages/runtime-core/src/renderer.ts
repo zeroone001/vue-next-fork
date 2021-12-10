@@ -1,19 +1,17 @@
 /* 
   这个文件主要是围绕 createRenderer 来展开的
-
   主要函数
-
   render 函数
-
   patch 函数
-
   processElement 处理 DOM元素
-
   mountElement 挂载元素
-
   processComponent 处理组件
-
   processText 处理 文本
+
+  组件重新渲染有两种场景：
+  1， 组件本身的数据变化，这种情况下next是null
+  2， 另一种是父组件在更新的过程中，遇到子组件节点，先判断子组件是否需要更新，
+  如果需要，则主动执行子组件的重新渲染方法，这种情况下next 就是新的子组件VNode
 
 */
 import {
@@ -895,7 +893,9 @@ function baseCreateRenderer(
       )
     }
   }
+  /* 
 
+  */
   const patchElement = (
     n1: VNode,
     n2: VNode,
@@ -963,7 +963,8 @@ function baseCreateRenderer(
       // in this path old node and new node are guaranteed to have the same shape
       // (i.e. at the exact same position in the source template)
       if (patchFlag & PatchFlags.FULL_PROPS) {
-        // element props contain dynamic keys, full diff needed
+        // 元素道具包含动态键，需要完全区分
+        /* 更新props */
         patchProps(
           el,
           n2,
@@ -1243,6 +1244,8 @@ function baseCreateRenderer(
   }
   /* 
       这是组件挂载的逻辑
+      mountComponent
+      updateComponent 本质上是判断子组件是否需要更新
   */
   const processComponent = (
     n1: VNode | null,
@@ -1278,7 +1281,7 @@ function baseCreateRenderer(
         )
       }
     } else {
-      /* 更新组件 */
+      /* 更新子组件 */
       updateComponent(n1, n2, optimized)
     }
   }
@@ -1379,23 +1382,24 @@ function baseCreateRenderer(
   /* 
   更新组件
   n1 旧
-n2 新的
+  n2 新的
  */
   const updateComponent = (n1: VNode, n2: VNode, optimized: boolean) => {
 
     const instance = (n2.component = n1.component)!
-    /* 判断是否需要更新组件 */
+    /* 判断是否需要更新组件
+      根据新旧组件的VNode判断是否需要更新子组件
+    */
     if (shouldUpdateComponent(n1, n2, optimized)) {
       if (
         __FEATURE_SUSPENSE__ &&
         instance.asyncDep &&
         !instance.asyncResolved
       ) {
-        // async & still pending - just update props and slots
-        // since the component's reactive effect for render isn't set-up yet
         if (__DEV__) {
           pushWarningContext(n2)
         }
+        /* 更新组件VNode 节点信息 */
         updateComponentPreRender(instance, n2, optimized)
         if (__DEV__) {
           popWarningContext()
@@ -1663,9 +1667,6 @@ n2 新的
         }
         next.el = nextTree.el
         if (originNext === null) {
-          // self-triggered update. In case of HOC, update parent component
-          // vnode el. HOC is indicated by parent instance's subTree pointing
-          // to child component's vnode
           updateHOCHostEl(instance, nextTree.el)
         }
         // updated hook
@@ -1708,11 +1709,10 @@ n2 新的
       () => queueJob(instance.update),
       instance.scope // track it in component's effect scope
     )
-      /* 
-      这里是重点
-      创建响应式的副作用函数 
-
-      */
+    /* 
+    这里是重点
+    创建响应式的副作用函数 
+    */
     const update = (instance.update = effect.run.bind(effect) as SchedulerJob)
 
     update.id = instance.uid
@@ -1733,7 +1733,9 @@ n2 新的
     /* 更新 */
     update()
   }
-
+  /* 
+    更新组件VNode节点信息
+  */
   const updateComponentPreRender = (
     instance: ComponentInternalInstance,
     nextVNode: VNode,
@@ -1741,9 +1743,13 @@ n2 新的
   ) => {
     nextVNode.component = instance
     const prevProps = instance.vnode.props
+    /* 组件实例的VNode指向新的组件VNode */
     instance.vnode = nextVNode
+    /* 清空next，为了下一次重新渲染做准备 */
     instance.next = null
+    /* 更新props */
     updateProps(instance, nextVNode.props, prevProps, optimized)
+    /* 更新插槽 */
     updateSlots(instance, nextVNode.children, optimized)
 
     pauseTracking()
@@ -1752,7 +1758,9 @@ n2 新的
     flushPreFlushCbs(undefined, instance.update)
     resetTracking()
   }
-
+  /* diff
+  
+  */
   const patchChildren: PatchChildrenFn = (
     n1,
     n2,
@@ -1817,6 +1825,9 @@ n2 新的
         // prev children was array
         if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
           // two arrays, cannot assume anything, do full diff
+          /* 
+            这是diff算法的核心呀
+          */
           patchKeyedChildren(
             c1 as VNode[],
             c2 as VNodeArrayChildren,
@@ -1853,7 +1864,7 @@ n2 新的
         }
       }
     }
-  }
+  } /* patchChildren */
 
   const patchUnkeyedChildren = (
     c1: VNode[],
@@ -1915,6 +1926,9 @@ n2 新的
   }
 
   // can be all-keyed or mixed
+  /* 
+    Vue3 diff 算法的核心
+  */
   const patchKeyedChildren = (
     c1: VNode[],
     c2: VNodeArrayChildren,
@@ -1928,9 +1942,12 @@ n2 新的
   ) => {
     let i = 0
     const l2 = c2.length
+    /* 旧节点的尾部索引 */
     let e1 = c1.length - 1 // prev ending index
+    /* 新节点的尾部索引 */
     let e2 = l2 - 1 // next ending index
 
+    /* 从头部开始同步 */
     // 1. sync from start
     // (a b) c
     // (a b) d e
@@ -1939,7 +1956,9 @@ n2 新的
       const n2 = (c2[i] = optimized
         ? cloneIfMounted(c2[i] as VNode)
         : normalizeVNode(c2[i]))
+
       if (isSameVNodeType(n1, n2)) {
+        /* 相同的节点， 递归执行patch 更新节点 */
         patch(
           n1,
           n2,
@@ -1952,11 +1971,12 @@ n2 新的
           optimized
         )
       } else {
+        /* 结束while循环 */
         break
       }
       i++
     }
-
+    /* 从尾部开始同步尾部节点 */
     // 2. sync from end
     // a (b c)
     // d e (b c)
@@ -1965,7 +1985,9 @@ n2 新的
       const n2 = (c2[e2] = optimized
         ? cloneIfMounted(c2[e2] as VNode)
         : normalizeVNode(c2[e2]))
+
       if (isSameVNodeType(n1, n2)) {
+        /* 如果是相同的节点，递归执行patch，更新节点 */
         patch(
           n1,
           n2,
@@ -1978,6 +2000,7 @@ n2 新的
           optimized
         )
       } else {
+        /* 结束while循环 */
         break
       }
       e1--
@@ -1991,6 +2014,7 @@ n2 新的
     // (a b)
     // c (a b)
     // i = 0, e1 = -1, e2 = 0
+    /* 新子节点 有剩余要添加的新节点 */
     if (i > e1) {
       if (i <= e2) {
         const nextPos = e2 + 1
@@ -2021,8 +2045,10 @@ n2 新的
     // a (b c)
     // (b c)
     // i = 0, e1 = 0, e2 = -1
+    /* 4. 旧子节点，有剩余要删除的多余节点 */
     else if (i > e2) {
       while (i <= e1) {
+        /* 删除多余的节点 */
         unmount(c1[i], parentComponent, parentSuspense, true)
         i++
       }
@@ -2032,16 +2058,24 @@ n2 新的
     // [i ... e1 + 1]: a b [c d e] f g
     // [i ... e2 + 1]: a b [e d c h] f g
     // i = 2, e1 = 4, e2 = 5
+    /* 未知的子序列 这里 更加复杂 */
     else {
+      /* 旧子序列开始索引，从 i 开始记录 */
       const s1 = i // prev starting index
+      /* 新子序列开始索引，从 i 开始记录 */
       const s2 = i // next starting index
 
-      // 5.1 build key:index map for newChildren
+      /* 
+        5.1 build key:index map for newChildren
+        根据key 建立 新子序列的索引图
+      */
       const keyToNewIndexMap: Map<string | number | symbol, number> = new Map()
+
       for (i = s2; i <= e2; i++) {
         const nextChild = (c2[i] = optimized
           ? cloneIfMounted(c2[i] as VNode)
           : normalizeVNode(c2[i]))
+
         if (nextChild.key != null) {
           if (__DEV__ && keyToNewIndexMap.has(nextChild.key)) {
             warn(
@@ -2050,35 +2084,38 @@ n2 新的
               `Make sure keys are unique.`
             )
           }
+          /* key 对应 i */
           keyToNewIndexMap.set(nextChild.key, i)
         }
       }
 
-      // 5.2 loop through old children left to be patched and try to patch
-      // matching nodes & remove nodes that are no longer present
+      /* 
+        5.2 循环遍历 旧子序列 patch
+      */
       let j
       let patched = 0
       const toBePatched = e2 - s2 + 1
       let moved = false
-      // used to track whether any node has moved
+      /* 用于跟踪判断是否有节点移动 */
       let maxNewIndexSoFar = 0
-      // works as Map<newIndex, oldIndex>
-      // Note that oldIndex is offset by +1
-      // and oldIndex = 0 is a special value indicating the new node has
-      // no corresponding old node.
-      // used for determining longest stable subsequence
+      /* 这个数组用于存储 新子序中的元素在旧子序列节点的索引，用于确定，最长递增子序列 */
       const newIndexToOldIndexMap = new Array(toBePatched)
+      /* 初始化数组，每个元素都是0， 0 是一个特殊的值，如果遍历完了，仍然有元素的值为0， 
+      则说明这个新节点没有对应的旧节点 */
       for (i = 0; i < toBePatched; i++) newIndexToOldIndexMap[i] = 0
-
+      /* 循环遍历 旧子节点 */
       for (i = s1; i <= e1; i++) {
+        /* 每一个旧子序列节点 */
         const prevChild = c1[i]
+        /* toBePatched 代表新子序列的长度 */
         if (patched >= toBePatched) {
-          // all new children have been patched so this can only be a removal
+          /* 所有的新的子序列的节点都已经更新，剩余的旧子序列的节点删除 */
           unmount(prevChild, parentComponent, parentSuspense, true)
           continue
         }
         let newIndex
         if (prevChild.key != null) {
+          /* 查找旧子序列中的节点在新子序列中的索引 */
           newIndex = keyToNewIndexMap.get(prevChild.key)
         } else {
           // key-less node, try to locate a key-less node of the same type
@@ -2092,15 +2129,21 @@ n2 新的
             }
           }
         }
+        /* 如果没找到， 说明旧子序列中的节点不存在新子序列中，那么就删除旧子序列的这个节点 */
         if (newIndex === undefined) {
           unmount(prevChild, parentComponent, parentSuspense, true)
         } else {
+          /* 更新，新子序列的元素 在旧子序列中的索引
+            这里加上1 偏移， 是为了避免i为0的特殊情况，影响对后续 最长递增子序列的求解
+          */
           newIndexToOldIndexMap[newIndex - s2] = i + 1
+          /* maxNewIndexSoFar 始终存储的是上次求值的newIndex，如果不是一直递增，则说明有移动 */
           if (newIndex >= maxNewIndexSoFar) {
             maxNewIndexSoFar = newIndex
           } else {
             moved = true
           }
+          /* 更新新旧子序列中匹配的节点 */
           patch(
             prevChild,
             c2[newIndex] as VNode,
@@ -2114,22 +2157,34 @@ n2 新的
           )
           patched++
         }
-      }
+      } /* 循环遍历旧节点 END */
 
       // 5.3 move and mount
-      // generate longest stable subsequence only when nodes have moved
+      /* 
+        moved 为TRUE 说明有移动
+        getSequence 计算最长递增子序列
+        newIndexToOldIndexMap:  [5, 3, 4, 0] 里面存的值 是旧的子序列的索引
+        5 要移动到4的后面，0占位，需要新增一个节点
+        假如 newIndexToOldIndexMap 为 [5, 3, 4, 0] 那么 最长递增子序列就是 [1,2] 里面存的是索引
+      */
       const increasingNewIndexSequence = moved
         ? getSequence(newIndexToOldIndexMap)
         : EMPTY_ARR
       j = increasingNewIndexSequence.length - 1
       // looping backwards so that we can use last patched node as anchor
+      /* 
+      使用倒序的方式，遍历 toBePatched 是新序列中的要对比的部分的长度 
+      方便我们使用最后更新的节点作为锚点
+      5.2是遍历了旧的，这一次要遍历新的
+      */
       for (i = toBePatched - 1; i >= 0; i--) {
         const nextIndex = s2 + i
         const nextChild = c2[nextIndex] as VNode
+        /* 锚点指向上一个更新的节点，如果 nextIndex 超过新子节点的长度，则指向parentAnchor */
         const anchor =
           nextIndex + 1 < l2 ? (c2[nextIndex + 1] as VNode).el : parentAnchor
         if (newIndexToOldIndexMap[i] === 0) {
-          // mount new
+          /* 0 是占位，mount 挂载新节点  */
           patch(
             null,
             nextChild,
@@ -2142,9 +2197,7 @@ n2 新的
             optimized
           )
         } else if (moved) {
-          // move if:
-          // There is no stable subsequence (e.g. a reverse)
-          // OR current node is not among the stable sequence
+          /* 没有最长递增子序列（reverse的场景）或者当前的节点索引不在最长递增子序列中，需要移动 */
           if (j < 0 || i !== increasingNewIndexSequence[j]) {
             move(nextChild, container, anchor, MoveType.REORDER)
           } else {
@@ -2153,7 +2206,7 @@ n2 新的
         }
       }
     }
-  }
+  } /* patchKeyedChildren end */
 
   const move: MoveFn = (
     vnode,
@@ -2659,7 +2712,7 @@ export function traverseStaticChildren(n1: VNode, n2: VNode, shallow = false) {
     }
   }
 }
-
+/* 计算最长递增子序列 */
 // https://en.wikipedia.org/wiki/Longest_increasing_subsequence
 function getSequence(arr: number[]): number[] {
   const p = arr.slice()

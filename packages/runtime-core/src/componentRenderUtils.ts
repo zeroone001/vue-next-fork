@@ -27,6 +27,7 @@ import {
   warnDeprecation
 } from './compat/compatConfig'
 
+/* 组件渲染的一些常用工具 */
 /**
  * dev only flag to track whether $attrs was used during render.
  * If $attrs was used during render then the warning for failed attrs
