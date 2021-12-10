@@ -414,12 +414,12 @@ function baseCreateRenderer(
 
     // patching & not same type, unmount old tree
     /* 
-      存在旧节点，且，新旧节点不同，则卸载旧节点
+      存在旧节点，且，新旧节点类型不同，则销毁旧节点
     */
     if (n1 && !isSameVNodeType(n1, n2)) {
       anchor = getNextHostNode(n1)
       unmount(n1, parentComponent, parentSuspense, true)
-      n1 = null
+      n1 = null /* 保证后续走mount 逻辑 */
     }
     /* PatchFlags.BAIL：一个特殊标志，表示differ算法应该退出优化模式 */
     if (n2.patchFlag === PatchFlags.BAIL) {
@@ -1285,11 +1285,9 @@ function baseCreateRenderer(
   /* 
     挂载组件
     创建组件实例->设置组件实例->执行带副作用的渲染函数
-    1. createComponentInstance 创建组件实例
-
-    2. setupComponent 设置组件 
-
-    3. setupRenderEffect 副作用函数
+    1. createComponentInstance
+    2. setupComponent
+    3. setupRenderEffect
   */
   const mountComponent: MountComponentFn = (
     initialVNode,
@@ -1360,7 +1358,9 @@ function baseCreateRenderer(
       return
     }
 
-    /* 设置并执行带有副作用的渲染函数 */
+    /* 设置并执行带有副作用的渲染函数
+      副作用渲染函数
+    */
     setupRenderEffect(
       instance,
       initialVNode,
@@ -1376,9 +1376,15 @@ function baseCreateRenderer(
       endMeasure(instance, `mount`)
     }
   }
-
+  /* 
+  更新组件
+  n1 旧
+n2 新的
+ */
   const updateComponent = (n1: VNode, n2: VNode, optimized: boolean) => {
+
     const instance = (n2.component = n1.component)!
+    /* 判断是否需要更新组件 */
     if (shouldUpdateComponent(n1, n2, optimized)) {
       if (
         __FEATURE_SUSPENSE__ &&
@@ -1398,26 +1404,26 @@ function baseCreateRenderer(
       } else {
         // normal update
         instance.next = n2
-        // in case the child component is also queued, remove it to avoid
-        // double updating the same child component in the same flush.
+        /* 子组件也可能因为数据变化而被添加到更新队列里了， 
+移除他们防止对一个子组件重复更新 */
         invalidateJob(instance.update)
-        // instance.update is the reactive effect.
+        /* 执行子组件的副作用渲染函数 */
         instance.update()
       }
     } else {
+      /* 不需要更新，只复制属性 */
       // no update needed. just copy over properties
       n2.component = n1.component
       n2.el = n1.el
       instance.vnode = n2
     }
-  }
+  } // updateComponent
   /* 
     设置并执行带有副作用的渲染函数
 
     componentUpdateFn
-
     ReactiveEffect() 关键
-
+    instance.update
     update()
   */
   const setupRenderEffect: SetupRenderEffectFn = (
@@ -1439,7 +1445,7 @@ function baseCreateRenderer(
     const componentUpdateFn = () => {
       /* 如果没有挂载过 */
       if (!instance.isMounted) {
-
+        /* 渲染组件 */
         let vnodeHook: VNodeHook | null | undefined
         const { el, props } = initialVNode
         const { bm, m, parent } = instance
@@ -1584,9 +1590,6 @@ function baseCreateRenderer(
         /* 
           更新组件
         */
-        // updateComponent
-        // This is triggered by mutation of component's own state (next: null)
-        // OR parent calling processComponent (next: VNode)
         let { next, bu, u, parent, vnode } = instance
         let originNext = next
         let vnodeHook: VNodeHook | null | undefined
@@ -1596,9 +1599,10 @@ function baseCreateRenderer(
 
         // Disallow component effect recursion during pre-lifecycle hooks.
         effect.allowRecurse = false
-
+        /* next 表示新的组件vnode */
         if (next) {
           next.el = vnode.el
+          /* 更新组件vnode 节点信息 */
           updateComponentPreRender(instance, next, optimized)
         } else {
           next = vnode
@@ -1625,22 +1629,30 @@ function baseCreateRenderer(
         if (__DEV__) {
           startMeasure(instance, `render`)
         }
+        /* 渲染新的子树vnode */
         const nextTree = renderComponentRoot(instance)
         if (__DEV__) {
           endMeasure(instance, `render`)
         }
+        /* 缓存旧的子树vnode */
         const prevTree = instance.subTree
+        /* 更新的子树 vnode */
         instance.subTree = nextTree
 
         if (__DEV__) {
           startMeasure(instance, `patch`)
         }
+        /* 
+          组件更新的核心逻辑，根据新旧子树做patch
+         */
         patch(
           prevTree,
           nextTree,
           // parent may have changed if it's in a teleport
-          hostParentNode(prevTree.el!)!,
+          /* 如果在teleport组件中，父节点可能已经改变，所以容器直接找DOM元素父节点 */
+          hostParentNode(prevTree.el!)!, 
           // anchor may have changed if it's in a fragment
+/* 如果在fragment组件中，父节点可能已经改变，所以容器直接找旧DOM元素下一个节点 */
           getNextHostNode(prevTree),
           instance,
           parentSuspense,
@@ -1699,6 +1711,7 @@ function baseCreateRenderer(
       /* 
       这里是重点
       创建响应式的副作用函数 
+
       */
     const update = (instance.update = effect.run.bind(effect) as SchedulerJob)
 

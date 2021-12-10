@@ -1,6 +1,6 @@
 # Vue3 源码学习
 
-## 初始化流程
+## 1,初始化流程
 
 1. `createApp(App) // @vue/runtime-dom` 创建Vue实例，扩展一些方法，比如use, mount, mixin, component, directive; 方法最终的定义位置为 `runtime-core/src/apiCreateApp.ts`
 2. createRenderer -> baseCreateRenderer() 对外暴露三个方法，render、hydrate、createApp； hydrate的实际作用是createApp返回的vue实例对象
@@ -15,7 +15,7 @@
 11. callWithErrorHandling() 调用setup() 传入两个参数 props 和  setupContext
 12. handleSetupResult(instance, setupResult, isSSR); 处理setup 函数返回的对象
 
-## 目录模块
+## 2,目录模块
 
 compile: 可以简单理解为将.vue 文件编译为 浏览器能识别的.js 文件
 runtime: 可以理解成，程序运行时，就是程序被编译完成后，在浏览器打开，运行代码，直到程序关闭
