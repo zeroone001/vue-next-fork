@@ -1312,9 +1312,9 @@ function baseCreateRenderer(
     const instance: ComponentInternalInstance =
       compatMountInstance ||
       (initialVNode.component = createComponentInstance(
-        initialVNode,
-        parentComponent,
-        parentSuspense
+        initialVNode, /* vnode */
+        parentComponent, /* parent */
+        parentSuspense /* suspense */
       ))
 
     if (__DEV__ && instance.type.__hmrId) {
@@ -1339,6 +1339,7 @@ function baseCreateRenderer(
       }
       /* 
         设置组件实例
+        setup 函数就在这里
       */
       setupComponent(instance)
       if (__DEV__) {

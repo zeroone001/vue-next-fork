@@ -435,35 +435,51 @@ export interface ComponentInternalInstance {
 const emptyAppContext = createAppContext()
 
 let uid = 0
-
+/* 
+  创建组件实例
+*/
 export function createComponentInstance(
   vnode: VNode,
   parent: ComponentInternalInstance | null,
   suspense: SuspenseBoundary | null
 ) {
   const type = vnode.type as ConcreteComponent
-  // inherit parent app context - or - if root, adopt from root vnode
+  /* 继承父组件实例上的appContext， 如果是根组件，直接从根VNode中取 */
   const appContext =
     (parent ? parent.appContext : vnode.appContext) || emptyAppContext
 
   const instance: ComponentInternalInstance = {
+    /* 组件唯一id */
     uid: uid++,
+    /* 组件vnode */
     vnode,
     type,
+    /* 父组件实例 */
     parent,
+    /* app 上下文 */
     appContext,
+    /* 根组件实例 */
     root: null!, // to be immediately set
+    /* 新的组件VNode */
     next: null,
+    /* 子节点VNode */
     subTree: null!, // will be set synchronously right after creation
+    /* 带副作用更新函数 */
     update: null!, // will be set synchronously right after creation
     scope: new EffectScope(true /* detached */),
+    /* render函数 */
     render: null,
+    /* 渲染上下文代理 */
     proxy: null,
     exposed: null,
     exposeProxy: null,
+    /* 带有with 区块的渲染上下文代理 */
     withProxy: null,
+    /* 依赖注入相关 */
     provides: parent ? parent.provides : Object.create(appContext.provides),
+    /* 渲染代理的属性访问缓存 */
     accessCache: null!,
+    /* 渲染缓存 */
     renderCache: [],
 
     // local resovled assets
@@ -485,47 +501,74 @@ export function createComponentInstance(
     inheritAttrs: type.inheritAttrs,
 
     // state
+    /* 渲染上下文 */
     ctx: EMPTY_OBJ,
+    /* data 数据 */
     data: EMPTY_OBJ,
+    /* props数据 */
     props: EMPTY_OBJ,
+    /* 普通属性 */
     attrs: EMPTY_OBJ,
+    /* 插槽相关 */
     slots: EMPTY_OBJ,
+    /* 组件或者DOM的ref引用 */
     refs: EMPTY_OBJ,
+    /* setup函数返回的响应式结果 */
     setupState: EMPTY_OBJ,
+    /* setup函数的上下文数据 */
     setupContext: null,
 
     // suspense related
     suspense,
     suspenseId: suspense ? suspense.pendingId : 0,
+    /* suspense 异步依赖 */
     asyncDep: null,
+    /* suspense 异步依赖 是否都已经处理 */
     asyncResolved: false,
 
     // lifecycle hooks
     // not using enums here because it results in computed properties
+    /* 是否挂载 */
     isMounted: false,
+    /* 是否卸载 */
     isUnmounted: false,
+    /* 是否激活 */
     isDeactivated: false,
+    /* 生命周期 beforeCreate */
     bc: null,
+    /* created */
     c: null,
+    /* beforeMount */
     bm: null,
+    /* mounted */
     m: null,
+    /* before update */
     bu: null,
+    /* updated */
     u: null,
+    /* unmounted */
     um: null,
+    /* beforeUnmount */
     bum: null,
     da: null,
     a: null,
+    /* render trigger */
     rtg: null,
+    /* render tracked */
     rtc: null,
     ec: null,
+    /* 派发事件 */
     sp: null
   }
   if (__DEV__) {
     instance.ctx = createDevRenderContext(instance)
   } else {
+    /* 初始化渲染上下文 */
     instance.ctx = { _: instance }
   }
+  /* 初始化根组件指针 */
   instance.root = parent ? parent.root : instance
+  /* 初始化派发事件方法 */
   instance.emit = emit.bind(null, instance)
 
   // apply custom element special handling
@@ -578,12 +621,13 @@ export function setupComponent(
   isInSSRComponentSetup = isSSR
 
   const { props, children } = instance.vnode
+  /* 判断是否是一个有状态的组件 */
   const isStateful = isStatefulComponent(instance)
   /* 初始化 props */
   initProps(instance, props, isStateful, isSSR)
   /* 初始化 slots */
   initSlots(instance, children)
-
+  /* 设置有状态的组件实例 */
   const setupResult = isStateful
     ? setupStatefulComponent(instance, isSSR)
     : undefined
@@ -625,10 +669,12 @@ function setupStatefulComponent(
     }
   }
 
-  // 0. create render proxy property access cache
+  /* 创建渲染代理的属性访问缓存 */
   instance.accessCache = Object.create(null)
-  // 1. create public instance / render proxy
-  // also mark it raw so it's never observed
+  /* 创建渲染上下文代理 
+    对这个的访问，instance.ctx 
+    做了代理
+  */
   instance.proxy = markRaw(new Proxy(instance.ctx, PublicInstanceProxyHandlers))
   if (__DEV__) {
     exposePropsOnRenderContext(instance)
@@ -637,9 +683,14 @@ function setupStatefulComponent(
   /* 
     setup 方法
     调用setup 函数
+    callWithErrorHandling 执行函数
+    handleSetupResult 处理结果
   */
   const { setup } = Component
   if (setup) {
+    /* 如果setup 函数带参数， 则创建 setup context
+    setup.length 代表 setup 函数参数的个数
+    */
     const setupContext = (instance.setupContext =
       setup.length > 1 ? createSetupContext(instance) : null)
 
@@ -647,6 +698,7 @@ function setupStatefulComponent(
     pauseTracking()
     /* 
       调用setup 函数，传入两个参数 props 和 setupContext
+      执行函数，获取结果
     */
     const setupResult = callWithErrorHandling(
       setup,
@@ -770,7 +822,8 @@ export function registerRuntimeCompiler(_compile: any) {
 export const isRuntimeOnly = () => !compile
 
 /* 
-
+  标准化模板或者渲染函数
+  兼容 optionsAPI
 */
 export function finishComponentSetup(
   instance: ComponentInternalInstance,
@@ -796,6 +849,7 @@ export function finishComponentSetup(
   if (!instance.render) {
     // only do on-the-fly compile if not in SSR - SSR on-the-fly compliation
     // is done by server-renderer
+    /* 如果compile 存在  */
     if (!isSSR && compile && !Component.render) {
       const template =
         (__COMPAT__ &&

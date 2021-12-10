@@ -259,9 +259,13 @@ export interface ComponentRenderContext {
   [key: string]: any
   _: ComponentInternalInstance
 }
-
+/* 
+ proxy代理
+*/
 export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
+
   get({ _: instance }: ComponentRenderContext, key: string) {
+    /* 访问这些的时候 */
     const { ctx, setupState, data, props, accessCache, type, appContext } =
       instance
 
@@ -292,6 +296,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
     let normalizedProps
     if (key[0] !== '$') {
       const n = accessCache![key]
+      /* n 使用了缓存，提高了性能 */
       if (n !== undefined) {
         switch (n) {
           case AccessTypes.SETUP:
@@ -306,6 +311,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
         }
       } else if (setupState !== EMPTY_OBJ && hasOwn(setupState, key)) {
         accessCache![key] = AccessTypes.SETUP
+        /* 从这里可以看出 setup 的优先级要大于data */
         return setupState[key]
       } else if (data !== EMPTY_OBJ && hasOwn(data, key)) {
         accessCache![key] = AccessTypes.DATA
@@ -400,6 +406,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
     } else if (data !== EMPTY_OBJ && hasOwn(data, key)) {
       data[key] = value
     } else if (hasOwn(instance.props, key)) {
+      /* 不能对props赋值 */
       __DEV__ &&
         warn(
           `Attempting to mutate prop "${key}". Props are readonly.`,
@@ -428,7 +435,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
     }
     return true
   },
-
+  /* created 'msg' in this */
   has(
     {
       _: { data, setupState, accessCache, ctx, appContext, propsOptions }
