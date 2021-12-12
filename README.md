@@ -1,5 +1,8 @@
 # Vue3 源码学习
 
+![Alt](https://repobeats.axiom.co/api/embed/3be4350d290bf2684e57b659d51fb72f5b8d214b.svg "Repobeats analytics image")
+
+
 ## 1,初始化流程
 
 1. `createApp(App) // @vue/runtime-dom` 创建Vue实例，扩展一些方法，比如use, mount, mixin, component, directive; 方法最终的定义位置为 `runtime-core/src/apiCreateApp.ts`
