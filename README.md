@@ -119,7 +119,9 @@ ref的原理依赖于reactive这个api。
 * 数据来源不清晰
 
 
+## Vue团队核心成员开发的39行小工具 install-pkg 安装包，值得一学！
 
+https://lxchuan12.gitee.io/install-pkg/#_1-%E5%89%8D%E8%A8%80
 
 # vue-next [![npm](https://img.shields.io/npm/v/vue/next.svg)](https://www.npmjs.com/package/vue/v/next) [![build status](https://github.com/vuejs/vue-next/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/vuejs/vue-next/actions/workflows/ci.yml)
 
